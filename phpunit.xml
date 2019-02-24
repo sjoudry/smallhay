@@ -1,0 +1,15 @@
+<phpunit>
+  <testsuites>
+    <testsuite name="Small Hay Test Suite">
+      <file>tests/SmallHayTest.php</file>
+    </testsuite>
+  </testsuites>
+  <filter>
+    <whitelist processUncoveredFilesFromWhitelist="true">
+      <file>SmallHay.php</file>
+    </whitelist>
+  </filter>
+  <logging>
+    <log type="coverage-html" target="reports" lowUpperBound="35" highLowerBound="70"/>
+  </logging>
+</phpunit>
