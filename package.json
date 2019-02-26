@@ -1,0 +1,19 @@
+{
+  "name": "smallhay",
+  "version": "1.0"
+  "description": "The Small Hay API SDK.",
+  "main": "SmallHay.php",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sjoudry/smallhay.git"
+  },
+  "keywords": [
+    "smallhay"
+  ],
+  "author": "Scott Joudry <sj@smallhay.com>",
+  "license": "GPL-2.0",
+  "bugs": {
+    "url": "https://github.com/sjoudry/smallhay/issues"
+  },
+  "homepage": "https://www.smallhay.com/"
+}
