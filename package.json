@@ -1,6 +1,6 @@
 {
   "name": "smallhay",
-  "version": "1.0"
+  "version": "1.0",
   "description": "The Small Hay API SDK.",
   "main": "SmallHay.php",
   "repository": {
