@@ -300,6 +300,58 @@ class API {
   }
 
   /**
+   * Get auth.
+   *
+   * Handles the authorization for all calls. If the access token is missing or
+   *    expired, retrieve a new one. The authorization endpoint is essentially
+   *    an oAuth authorization using the client_credentials grant type.
+   *    Corresponds to the following API endpoint:
+   *      POST /auth
+   *
+   * @return bool
+   *    contains the authorization status:
+   *      TRUE  = authorized
+   *      FALSE = unauthorized
+   */
+  public function get_auth() {
+    $access_token_retrieved = FALSE;
+
+    if (!isset($this->access_token) || ($this->access_token_expires > 0 && $this->access_token_expires <= time())) {
+      $headers = array(
+        'Content-Type: application/json',
+        'Authorization: Basic ' . base64_encode($this->client_id . ':' . $this->client_secret),
+        'Content-Length: 0',
+      );
+
+      $ch = curl_init();
+      curl_setopt($ch, CURLOPT_URL, self::API_RESOURCE . '/auth');
+      curl_setopt($ch, CURLOPT_POST, TRUE);
+      curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
+      curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
+      $response = curl_exec($ch);
+      $info = curl_getinfo($ch);
+
+      // Handle the response.
+      $this->http_code = $info['http_code'];
+      if ($info['http_code'] == 200) {
+        $json = @json_decode($response);
+        if (json_last_error() == JSON_ERROR_NONE) {
+          $this->access_token = $json->access_token;
+          $this->access_token_expires = time() + ($json->expires - $json->created);
+        }
+      }
+
+      curl_close($ch);
+    }
+
+    if (isset($this->access_token) && $this->access_token_expires > time()) {
+      $access_token_retrieved = TRUE;
+    }
+
+    return $access_token_retrieved;
+  }
+
+  /**
    * Get client ID.
    *
    * @return string
@@ -644,58 +696,6 @@ class API {
    */
   private function get($endpoint) {
     return $this->send('get', $endpoint);
-  }
-
-  /**
-   * Get auth.
-   *
-   * Handles the authorization for all calls. If the access token is missing or
-   *    expired, retrieve a new one. The authorization endpoint is essentially
-   *    an oAuth authorization using the client_credentials grant type.
-   *    Corresponds to the following API endpoint:
-   *      POST /auth
-   *
-   * @return bool
-   *    contains the authorization status:
-   *      TRUE  = authorized
-   *      FALSE = unauthorized
-   */
-  private function get_auth() {
-    $access_token_retrieved = FALSE;
-
-    if (!isset($this->access_token) || ($this->access_token_expires > 0 && $this->access_token_expires <= time())) {
-      $headers = array(
-        'Content-Type: application/json',
-        'Authorization: Basic ' . base64_encode($this->client_id . ':' . $this->client_secret),
-        'Content-Length: 0',
-      );
-
-      $ch = curl_init();
-      curl_setopt($ch, CURLOPT_URL, self::API_RESOURCE . '/auth');
-      curl_setopt($ch, CURLOPT_POST, TRUE);
-      curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
-      curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
-      $response = curl_exec($ch);
-      $info = curl_getinfo($ch);
-
-      // Handle the response.
-      $this->http_code = $info['http_code'];
-      if ($info['http_code'] == 200) {
-        $json = @json_decode($response);
-        if (json_last_error() == JSON_ERROR_NONE) {
-          $this->access_token = $json->access_token;
-          $this->access_token_expires = time() + ($json->expires - $json->created);
-        }
-      }
-
-      curl_close($ch);
-    }
-
-    if (isset($this->access_token) && $this->access_token_expires > time()) {
-      $access_token_retrieved = TRUE;
-    }
-
-    return $access_token_retrieved;
   }
 
   /**
