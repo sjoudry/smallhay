@@ -429,6 +429,48 @@ class API {
   }
 
   /**
+   * Get page asset.
+   *
+   * Corresponds to the following API endpoint:
+   *     GET /pages/<PAGEID>/assets/<ASSETID>
+   *
+   * @param int $page_id
+   *     contains the page id.
+   * @param int $asset_id
+   *     contains the asset id.
+   *
+   * @return object
+   *     contains the response object.
+   *      For example:
+   *        {
+   *          "page": "10",
+   *          "assets": {
+   *            "1": {
+   *              "id": "1",
+   *              "type": "javascript",
+   *              "input": "Long base 64 encoded string (modified)",
+   *              "output": null,
+   *              "created": "1549311047",
+   *              "completed": null,
+   *              "status": "0"
+   *            },
+   *            "2": {
+   *              "id": "2",
+   *              "type": "javascript",
+   *              "input": "Another Long base 64 encoded string (modified)",
+   *              "output": null,
+   *              "created": "1549311047",
+   *              "completed": null,
+   *              "status": "0"
+   *            }
+   *          }
+   *        }
+   */
+  public function get_page_asset($page_id, $asset_id) {
+    return $this->get('pages/' . $page_id . '/assets/' . $asset_id);
+  }
+
+  /**
    * Get page assets.
    *
    * Corresponds to the following API endpoint:

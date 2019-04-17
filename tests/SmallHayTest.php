@@ -296,7 +296,146 @@ class SmallHayTest extends TestCase {
   }
 
   /**
-   * Test 11 - create page assets errors.
+   * Test 11 - list page asset errors.
+   */
+  public function testListPageAssetErrors() {
+
+    // invalid page id.
+    $response = $this->smallhay->get_page_asset(0, 0);
+    $this->_assertError($response, 'SH-v1-011', 404);
+
+    // Create a single page.
+    $created = $this->_createSinglePage();
+    $created_id = array_shift($created);
+
+    // invalid asset id.
+    $response = $this->smallhay->get_page_asset($created_id, 0);
+    $this->_assertError($response, 'SH-v1-011', 404);
+}
+
+  /**
+   * Test 12 - modify page asset errors.
+   */
+  // public function testModifyPageAssetErrors() {
+
+  //   // Create a single page.
+  //   $created = $this->_createSinglePage();
+  //   $created_id = array_shift($created);
+
+  //   // invalid id.
+  //   $response = $this->smallhay->update_page_assets(0, $this->_getJSONInvalid());
+  //   $this->_assertError($response, 'SH-v1-011', 404);
+
+  //   // invalid JSON.
+  //   $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONInvalid());
+  //   $this->_assertError($response, 'SH-v1-008', 500);
+
+  //   // missing assets data.
+  //   $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectEmpty());
+  //   $this->_assertError($response, 'SH-v1-009', 500);
+
+  //   // maximum items.
+  //   $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectTooMany());
+  //   $this->_assertError($response, 'SH-v1-010', 500);
+
+  //   // missing input.
+  //   $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputMissing());
+  //   $this->_assertError($response, 'SH-v1-009', 500);
+
+  //   // invalid input - non-string.
+  //   $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputBoolean());
+  //   $this->_assertError($response, 'SH-v1-009', 500);
+
+  //   // invalid input.
+  //   $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputString());
+  //   $this->_assertError($response, 'SH-v1-009', 500);
+
+  //   // invalid page asset ids
+  //   $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsIdInvalid());
+  //   $this->_assertError($response, 'SH-v1-011', 404);
+  // }
+
+  /**
+   * Test 13 - delete page asset errors.
+   */
+  // public function testDeletePageAssetErrors() {
+
+  //   // Create a single page.
+  //   $created = $this->_createSinglePage();
+  //   $created_id = array_shift($created);
+
+  //   // invalid id.
+  //   $response = $this->smallhay->delete_page_assets(0, $this->_getJSONInvalid());
+  //   $this->_assertError($response, 'SH-v1-011', 404);
+
+  //   // invalid JSON.
+  //   $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONInvalid());
+  //   $this->_assertError($response, 'SH-v1-008', 500);
+
+  //   // missing page asset id.
+  //   $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayEmpty());
+  //   $this->_assertError($response, 'SH-v1-009', 500);
+
+  //   // maximum items.
+  //   $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayPathsTooMany());
+  //   $this->_assertError($response, 'SH-v1-010', 500);
+
+  //   // invalid page ids.
+  //   $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayPathsString());
+  //   $this->_assertError($response, 'SH-v1-009', 500);
+  // }
+
+  /**
+   * Test 14 - page asset.
+   */
+  public function testPageAssetCalls() {
+
+    // Create a single page.
+    $created = $this->_createSinglePage();
+    $created_id = array_shift($created);
+
+    // create page assets.
+    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssets());
+    $this->_assertSuccess($response_create);
+    $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
+    $this->assertEquals(count(get_object_vars($response_create->assets)), 2);
+    foreach ($response_create->assets as $asset_id => $asset) {
+      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $response_create->assets->{$asset_id}->input = base64_encode(base64_decode($asset->input) . 'new');
+    }
+
+  //   // modify page asset.
+  //   $response_modify = $this->smallhay->update_page_assets($created_id, json_encode($response_create));
+  //   $this->_assertSuccess($response_modify);
+  //   $this->_assertAttributes($response_modify, array('assets', 'page'), array('links'));
+  //   $this->assertEquals(count(get_object_vars($response_modify->assets)), 2);
+  //   $this->assertEquals($response_create, $response_modify);
+  //   foreach ($response_modify->assets as $asset_id => $asset) {
+  //     $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+  //   }
+
+  //   // list page assets.
+  //   $response_list = $this->smallhay->get_page_assets($created_id);
+  //   $this->_assertSuccess($response_list);
+  //   $this->_assertAttributes($response_list, array('assets', 'page', 'links'));
+  //   $this->assertGreaterThanOrEqual(2, count(get_object_vars($response_list->assets)));
+  //   foreach ($response_modify->assets as $asset_id => $asset) {
+  //     $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+  //   }
+
+  //   // delete page assets.
+  //   $response_delete = $this->smallhay->delete_page_assets($created_id, json_encode(array_keys(get_object_vars($response_modify->assets))));
+  //   $this->_assertSuccess($response_delete);
+  //   $this->_assertAttributes($response_delete, array('assets', 'page'), array('links'));
+  //   $this->assertEquals(count(get_object_vars($response_delete->assets)), 2);
+  //   $this->assertEquals($response_delete, $response_modify);
+  //   foreach ($response_modify->assets as $asset_id => $asset) {
+  //     $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+  //   }
+  }
+
+  /**
+   * Test 15 - create page assets errors.
    */
   public function testCreatePageAssetsErrors() {
 
@@ -342,7 +481,7 @@ class SmallHayTest extends TestCase {
   }
 
   /**
-   * Test 12 - list page assets errors.
+   * Test 16 - list page assets errors.
    */
   public function testListPageAssetsErrors() {
 
@@ -352,7 +491,7 @@ class SmallHayTest extends TestCase {
 }
 
   /**
-   * Test 13 - modify page assets errors.
+   * Test 17 - modify page assets errors.
    */
   public function testModifyPageAssetsErrors() {
 
@@ -394,7 +533,7 @@ class SmallHayTest extends TestCase {
   }
 
   /**
-   * Test 14 - delete page assets errors.
+   * Test 18 - delete page assets errors.
    */
   public function testDeletePageAssetsErrors() {
 
@@ -424,7 +563,7 @@ class SmallHayTest extends TestCase {
   }
 
   /**
-   * Test 15 - page assets.
+   * Test 19 - page assets.
    */
   public function testPageAssetsCalls() {
 
