@@ -209,10 +209,43 @@ class API {
   }
 
   /**
+   * Delete page asset.
+   *
+   * Corresponds to the following API endpoint:
+   *    DELETE /pages/<PAGEID>/assets/<ASSETID>
+   *
+   * @param int $page_id
+   *    contains the page id.
+   * @param int $asset_id
+   *    contains the asset id.
+   *
+   * @return object
+   *    contains the response object.
+   *    For example:
+   *      {
+   *        "page": "10",
+   *        "assets": {
+   *          "224": {
+   *            "id": "224",
+   *            "type": "javascript",
+   *            "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n",
+   *            "output": null,
+   *            "created": "1551028825",
+   *            "completed": null,
+   *            "status": "0"
+   *          }
+   *        }
+   *      }
+   */
+  public function delete_page_asset($page_id, $asset_id) {
+    return $this->delete('pages/' . $page_id . '/assets/' . $asset_id);
+  }
+
+  /**
    * Delete page assets.
    *
    * Corresponds to the following API endpoint:
-   *    DELETE /pages/<PAGEID>/assets?type=<TYPE>
+   *    DELETE /pages/<PAGEID>/assets
    *
    * @param int $page_id
    *    contains the page id.
