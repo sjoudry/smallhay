@@ -358,32 +358,16 @@ class SmallHayTest extends TestCase {
   /**
    * Test 13 - delete page asset errors.
    */
-  // public function testDeletePageAssetErrors() {
+  public function testDeletePageAssetErrors() {
 
-  //   // Create a single page.
-  //   $created = $this->_createSinglePage();
-  //   $created_id = array_shift($created);
+    // Create a single page.
+    $created = $this->_createSinglePage();
+    $created_id = array_shift($created);
 
-  //   // invalid id.
-  //   $response = $this->smallhay->delete_page_assets(0, $this->_getJSONInvalid());
-  //   $this->_assertError($response, 'SH-v1-011', 404);
-
-  //   // invalid JSON.
-  //   $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONInvalid());
-  //   $this->_assertError($response, 'SH-v1-008', 500);
-
-  //   // missing page asset id.
-  //   $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayEmpty());
-  //   $this->_assertError($response, 'SH-v1-009', 500);
-
-  //   // maximum items.
-  //   $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayPathsTooMany());
-  //   $this->_assertError($response, 'SH-v1-010', 500);
-
-  //   // invalid page ids.
-  //   $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayPathsString());
-  //   $this->_assertError($response, 'SH-v1-009', 500);
-  // }
+    // invalid id.
+    $response = $this->smallhay->delete_page_asset($created_id, 0);
+    $this->_assertError($response, 'SH-v1-011', 404);
+  }
 
   /**
    * Test 14 - page asset.
@@ -395,10 +379,10 @@ class SmallHayTest extends TestCase {
     $created_id = array_shift($created);
 
     // create page assets.
-    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssets());
+    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAsset());
     $this->_assertSuccess($response_create);
     $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_create->assets)), 2);
+    $this->assertEquals(count(get_object_vars($response_create->assets)), 1);
     $created_asset_id = 0;
     foreach ($response_create->assets as $asset_id => $asset) {
       $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
@@ -425,15 +409,15 @@ class SmallHayTest extends TestCase {
       $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
 
-  //   // delete page assets.
-  //   $response_delete = $this->smallhay->delete_page_assets($created_id, json_encode(array_keys(get_object_vars($response_modify->assets))));
-  //   $this->_assertSuccess($response_delete);
-  //   $this->_assertAttributes($response_delete, array('assets', 'page'), array('links'));
-  //   $this->assertEquals(count(get_object_vars($response_delete->assets)), 2);
-  //   $this->assertEquals($response_delete, $response_modify);
-  //   foreach ($response_modify->assets as $asset_id => $asset) {
-  //     $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
-  //   }
+    // delete page asset.
+    $response_delete = $this->smallhay->delete_page_asset($created_id, $created_asset_id);
+    $this->_assertSuccess($response_delete);
+    $this->_assertAttributes($response_delete, array('assets', 'page'), array('links'));
+    $this->assertEquals(count(get_object_vars($response_delete->assets)), 1);
+    $this->assertEquals($response_delete, $response_list);
+    foreach ($response_delete->assets as $asset_id => $asset) {
+      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+    }
   }
 
   /**
@@ -767,6 +751,24 @@ class SmallHayTest extends TestCase {
     $page->path = 'invalid';
 
     return json_encode($page);
+  }
+
+  /**
+   * Get JSON Object - Page Asset
+   *
+   * @return false|string
+   */
+  private function _getJSONObjectPageAsset() {
+
+    // create json object with valid asset.
+    $asset = new stdClass();
+    $asset->type = 'javascript';
+    $asset->input = base64_encode('<script type="javascript">alert("asset 1");</script>');
+
+    $page_assets = new stdClass();
+    $page_assets->assets[] = $asset;
+
+    return json_encode($page_assets);
   }
 
   /**
