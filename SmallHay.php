@@ -614,6 +614,45 @@ class API {
   }
 
   /**
+   * Update page asset.
+   *
+   * Corresponds to the following API endpoint:
+   *     PUT /pages/<PAGEID>/assets/<ASSETID>
+   *
+   * @param int $page_id
+   *     contains the page id.
+   * @param int $asset_id
+   *     contains the asset id.
+   * @param string $payload
+   *     contains the json encoded payload.
+   *      For example:
+   *        {
+   *          "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n"
+   *        }
+   *
+   * @return object
+   *     contains the response object.
+   *     For example:
+   *      {
+   *        "page": "10",
+   *        "assets": {
+   *          "8": {
+   *            "id": "8",
+   *            "type": "javascript",
+   *            "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n",
+   *            "output": null,
+   *            "created": "1549311967",
+   *            "completed": null,
+   *            "status": "0"
+   *          }
+   *        }
+   *      }
+   */
+  public function update_page_asset($page_id, $asset_id, $payload) {
+    return $this->put('pages/' . $page_id . '/assets/' . $asset_id, $payload);
+  }
+
+  /**
    * Update page assets.
    *
    * Corresponds to the following API endpoint:
