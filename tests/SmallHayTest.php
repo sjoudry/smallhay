@@ -322,37 +322,55 @@ class SmallHayTest extends TestCase {
     $created = $this->_createSinglePage();
     $created_id = array_shift($created);
 
+    // Create page assets.
+    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssets());
+    $this->_assertSuccess($response_create);
+    $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
+    $this->assertEquals(count(get_object_vars($response_create->assets)), 2);
+    $first_asset_id = 0;
+    $second_asset_id = 0;
+    foreach ($response_create->assets as $asset_id => $asset) {
+      if ($first_asset_id == 0) {
+        $first_asset_id = $asset_id;
+      }
+      else {
+        $second_asset_id = $asset_id;
+      }
+    }
+    $this->assertNotEquals($first_asset_id, 0);
+    $this->assertNotEquals($second_asset_id, 0);
+
     // invalid id.
-    $response = $this->smallhay->update_page_assets(0, $this->_getJSONInvalid());
+    $response = $this->smallhay->update_page_asset($created_id, 0, '');
+    $this->_assertError($response, 'SH-v1-011', 404);
+
+    // invalid id.
+    $response = $this->smallhay->update_page_asset(0, $first_asset_id, $this->_getJSONInvalid());
     $this->_assertError($response, 'SH-v1-011', 404);
 
     // invalid JSON.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONInvalid());
+    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONInvalid());
     $this->_assertError($response, 'SH-v1-008', 500);
 
     // missing assets data.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectEmpty());
+    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONObjectEmpty());
     $this->_assertError($response, 'SH-v1-009', 500);
 
-    // maximum items.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectTooMany());
-    $this->_assertError($response, 'SH-v1-010', 500);
-
     // missing input.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputMissing());
+    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONObjectPageAssetsObjectInputMissing());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid input - non-string.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputBoolean());
+    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONObjectPageAssetsObjectInputBoolean());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid input.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputString());
+    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONObjectPageAssetsObjectInputString());
     $this->_assertError($response, 'SH-v1-009', 500);
 
-    // invalid page asset ids
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsIdInvalid());
-    $this->_assertError($response, 'SH-v1-011', 404);
+    // duplicate via update.
+    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, json_encode($response_create->assets->{$second_asset_id}));
+    $this->_assertError($response, 'SH-v1-013', 500);
   }
 
   /**
