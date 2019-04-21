@@ -110,6 +110,22 @@ class SmallHayTest extends TestCase {
    */
   public function testModifyPagesErrors() {
 
+    // Create two pages.
+    $response_create = $this->smallhay->create_pages($this->_getJSONArrayPathsMultiple());
+    $this->_assertSuccess($response_create);
+    $first_page_id = 0;
+    $second_page_id = 0;
+    foreach ($response_create->pages as $page_id => $page) {
+      if ($first_page_id == 0) {
+        $first_page_id = $page_id;
+      }
+      else {
+        $second_page_id = $page_id;
+      }
+    }
+    $this->assertNotEquals($first_page_id, 0);
+    $this->assertNotEquals($second_page_id, 0);
+
     // invalid JSON.
     $response = $this->smallhay->update_pages($this->_getJSONInvalid());
     $this->_assertError($response, 'SH-v1-008', 500);
@@ -137,6 +153,14 @@ class SmallHayTest extends TestCase {
     // invalid path - non-string.
     $response = $this->smallhay->update_pages($this->_getJSONObjectPagesPathBoolean());
     $this->_assertError($response, 'SH-v1-009', 500);
+
+    // duplicate via update.
+    $first_path = $response_create->pages->{$first_page_id}->path;
+    $second_path = $response_create->pages->{$second_page_id}->path;
+    $response_create->pages->{$first_page_id}->path = $second_path;
+    $response_create->pages->{$second_page_id}->path = $first_path;
+    $response = $this->smallhay->update_pages(json_encode($response_create));
+    $this->_assertError($response, 'SH-v1-013', 500);
   }
 
   /**
@@ -173,7 +197,7 @@ class SmallHayTest extends TestCase {
     $this->assertEquals(count(get_object_vars($response_create->pages)), 1);
     foreach ($response_create->pages as $page_id => $page) {
       $this->_assertAttributes($page, array('id', 'path', 'created'));
-      $response_create->pages->{$page_id}->path .= '/new';
+      $response_create->pages->{$page_id}->path .= '/' . md5(microtime(TRUE));
     }
 
     // Modify two pages.
@@ -221,29 +245,45 @@ class SmallHayTest extends TestCase {
    */
   public function testModifyPageErrors() {
 
+    // Create two pages.
+    $response_create = $this->smallhay->create_pages($this->_getJSONArrayPathsMultiple());
+    $this->_assertSuccess($response_create);
+    $first_page_id = 0;
+    $second_page_id = 0;
+    foreach ($response_create->pages as $page_id => $page) {
+      if ($first_page_id == 0) {
+        $first_page_id = $page_id;
+      }
+      else {
+        $second_page_id = $page_id;
+      }
+    }
+    $this->assertNotEquals($first_page_id, 0);
+    $this->assertNotEquals($second_page_id, 0);
+
     // modify pages - invalid id.
     $response = $this->smallhay->update_page(0, $this->_getJSONInvalid());
     $this->_assertError($response, 'SH-v1-011', 404);
 
-    // Create a page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
-
     // invalid JSON.
-    $response = $this->smallhay->update_page($created_id, $this->_getJSONInvalid());
+    $response = $this->smallhay->update_page($first_page_id, $this->_getJSONInvalid());
     $this->_assertError($response, 'SH-v1-008', 500);
 
     // missing path.
-    $response = $this->smallhay->update_page($created_id, $this->_getJSONObjectEmpty());
+    $response = $this->smallhay->update_page($first_page_id, $this->_getJSONObjectEmpty());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid path - non-string.
-    $response = $this->smallhay->update_page($created_id, $this->_getJSONObjectPagePathBoolean());
+    $response = $this->smallhay->update_page($first_page_id, $this->_getJSONObjectPagePathBoolean());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid path - missing leading /.
-    $response = $this->smallhay->update_page($created_id, $this->_getJSONObjectPagePathString());
+    $response = $this->smallhay->update_page($first_page_id, $this->_getJSONObjectPagePathString());
     $this->_assertError($response, 'SH-v1-009', 500);
+
+    // duplicate via update.
+    $response = $this->smallhay->update_page($first_page_id, json_encode($response_create->pages->{$second_page_id}));
+    $this->_assertError($response, 'SH-v1-013', 500);
   }
 
   /**
@@ -265,7 +305,7 @@ class SmallHayTest extends TestCase {
     list($created_id, $response_create) = $this->_createSinglePage();
 
     // Modify the page.
-    $response_create->pages->{$created_id}->path .= '/new';
+    $response_create->pages->{$created_id}->path .= '/' . md5(microtime(TRUE));
     $response_modify = $this->smallhay->update_page($created_id, json_encode($response_create->pages->{$created_id}));
     $this->_assertSuccess($response_modify);
     $this->_assertAttributes($response_modify, array('pages'), array('links'));
@@ -700,6 +740,15 @@ class SmallHayTest extends TestCase {
    */
   private function _getJSONArrayPaths() {
     return json_encode(array('/test'));
+  }
+
+  /**
+   * Get JSON Array - Paths Multiple (Valid)
+   *
+   * @return false|string
+   */
+  private function _getJSONArrayPathsMultiple() {
+    return json_encode(array('/test', '/contact'));
   }
 
   /**
