@@ -543,6 +543,24 @@ class SmallHayTest extends TestCase {
     $created = $this->_createSinglePage();
     $created_id = array_shift($created);
 
+    // Create page assets.
+    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssets());
+    $this->_assertSuccess($response_create);
+    $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
+    $this->assertEquals(count(get_object_vars($response_create->assets)), 2);
+    $first_asset_id = 0;
+    $second_asset_id = 0;
+    foreach ($response_create->assets as $asset_id => $asset) {
+      if ($first_asset_id == 0) {
+        $first_asset_id = $asset_id;
+      }
+      else {
+        $second_asset_id = $asset_id;
+      }
+    }
+    $this->assertNotEquals($first_asset_id, 0);
+    $this->assertNotEquals($second_asset_id, 0);
+
     // invalid id.
     $response = $this->smallhay->update_page_assets(0, $this->_getJSONInvalid());
     $this->_assertError($response, 'SH-v1-011', 404);
@@ -574,6 +592,14 @@ class SmallHayTest extends TestCase {
     // invalid page asset ids
     $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsIdInvalid());
     $this->_assertError($response, 'SH-v1-011', 404);
+
+    // duplicate via update.
+    $first_input = $response_create->assets->{$first_asset_id}->input;
+    $second_input = $response_create->assets->{$first_asset_id}->input;
+    $response_create->assets->{$first_asset_id}->input = $second_input;
+    $response_create->assets->{$second_asset_id}->input = $first_input;
+    $response = $this->smallhay->update_page_assets($created_id, json_encode($response_create));
+    $this->_assertError($response, 'SH-v1-013', 500);
   }
 
   /**
