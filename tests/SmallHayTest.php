@@ -443,7 +443,7 @@ class SmallHayTest extends TestCase {
     $this->assertEquals(count(get_object_vars($response_create->assets)), 1);
     $created_asset_id = 0;
     foreach ($response_create->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
       $response_create->assets->{$asset_id}->input = base64_encode(base64_decode($asset->input) . 'new');
       $created_asset_id = $asset_id;
     }
@@ -455,7 +455,7 @@ class SmallHayTest extends TestCase {
     $this->assertEquals(count(get_object_vars($response_modify->assets)), 1);
     $this->assertEquals($response_create->assets->{$created_asset_id}, $response_modify->assets->{$created_asset_id});
     foreach ($response_modify->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
 
     // list page asset.
@@ -464,7 +464,7 @@ class SmallHayTest extends TestCase {
     $this->_assertAttributes($response_list, array('assets', 'page'), array('links'));
     $this->assertEquals(1, count(get_object_vars($response_list->assets)));
     foreach ($response_list->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
 
     // delete page asset.
@@ -474,7 +474,7 @@ class SmallHayTest extends TestCase {
     $this->assertEquals(count(get_object_vars($response_delete->assets)), 1);
     $this->assertEquals($response_delete, $response_list);
     foreach ($response_delete->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
   }
 
@@ -655,7 +655,7 @@ class SmallHayTest extends TestCase {
     $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
     $this->assertEquals(count(get_object_vars($response_create->assets)), 2);
     foreach ($response_create->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
       $response_create->assets->{$asset_id}->input = base64_encode(base64_decode($asset->input) . 'new');
     }
 
@@ -666,7 +666,7 @@ class SmallHayTest extends TestCase {
     $this->assertEquals(count(get_object_vars($response_modify->assets)), 2);
     $this->assertEquals($response_create, $response_modify);
     foreach ($response_modify->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
 
     // list page assets.
@@ -675,7 +675,7 @@ class SmallHayTest extends TestCase {
     $this->_assertAttributes($response_list, array('assets', 'page', 'links'));
     $this->assertGreaterThanOrEqual(2, count(get_object_vars($response_list->assets)));
     foreach ($response_modify->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
 
     // delete page assets.
@@ -685,7 +685,7 @@ class SmallHayTest extends TestCase {
     $this->assertEquals(count(get_object_vars($response_delete->assets)), 2);
     $this->assertEquals($response_delete, $response_modify);
     foreach ($response_modify->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
   }
 
@@ -935,6 +935,7 @@ class SmallHayTest extends TestCase {
     $page_assets = new stdClass();
     $page_assets->assets = new stdClass();
     $page_assets->assets->{0} = new stdClass();
+    $page_assets->assets->{0}->type = 'raw';
     $page_assets->assets->{0}->input = base64_encode('<script type="javascript">alert("test");</script>');
 
     return json_encode($page_assets);
@@ -1026,6 +1027,7 @@ class SmallHayTest extends TestCase {
     $page_assets = new stdClass();
     $page_assets->assets = new stdClass();
     $page_assets->assets->{1} = new stdClass();
+    $page_assets->assets->{1}->type = 'raw';
     $page_assets->assets->{1}->right = 'wrong';
 
     return json_encode($page_assets);
@@ -1042,6 +1044,7 @@ class SmallHayTest extends TestCase {
     $page_assets = new stdClass();
     $page_assets->assets = new stdClass();
     $page_assets->assets->{1} = new stdClass();
+    $page_assets->assets->{1}->type = 'raw';
     $page_assets->assets->{1}->input = '<script type="javascript">alert("test");</script>';
 
     return json_encode($page_assets);
