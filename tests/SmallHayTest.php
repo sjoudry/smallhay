@@ -503,6 +503,10 @@ class SmallHayTest extends TestCase {
     $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsArrayTooMany());
     $this->_assertError($response, 'SH-v1-010', 500);
 
+    // invalid data type.
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsDataTypeInvalid());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
     // invalid type.
     $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsTypeInvalid());
     $this->_assertError($response, 'SH-v1-009', 500);
@@ -513,6 +517,10 @@ class SmallHayTest extends TestCase {
 
     // invalid input.
     $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsInputBoolean());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // missing data type.
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsDataTypeMissing());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // missing type.
@@ -855,7 +863,8 @@ class SmallHayTest extends TestCase {
 
     // create json object with valid asset.
     $asset = new stdClass();
-    $asset->type = 'javascript';
+    $asset->data_type = 'javascript';
+    $asset->type = 'raw';
     $asset->input = base64_encode('<script type="javascript">alert("asset 1");</script>');
 
     $page_assets = new stdClass();
@@ -873,12 +882,14 @@ class SmallHayTest extends TestCase {
 
     // create json object with valid asset.
     $asset1 = new stdClass();
-    $asset1->type = 'javascript';
+    $asset1->data_type = 'javascript';
+    $asset1->type = 'raw';
     $asset1->input = base64_encode('<script type="javascript">alert("asset 1");</script>');
 
     // create json object with valid asset.
     $asset2 = new stdClass();
-    $asset2->type = 'javascript';
+    $asset2->data_type = 'javascript';
+    $asset2->type = 'raw';
     $asset2->input = base64_encode('<script type="javascript">alert("asset 2");</script>');
 
     $page_assets = new stdClass();
@@ -897,6 +908,7 @@ class SmallHayTest extends TestCase {
 
     // create json object with invalid json data.
     $asset = new stdClass();
+    $asset->data_type = 'invalid';
     $asset->type = 'invalid';
     $asset->input = '<script type="javascript">alert("test");</script>';
 
@@ -937,7 +949,8 @@ class SmallHayTest extends TestCase {
 
     // create json object with invalid json data.
     $asset = new stdClass();
-    $asset->type = 'javascript';
+    $asset->data_type = 'javascript';
+    $asset->type = 'raw';
     $asset->input = TRUE;
 
     // create json object with invalid input.
@@ -957,6 +970,7 @@ class SmallHayTest extends TestCase {
     // create json object with missing input.
     $asset = new stdClass();
     $asset->type = 'javascript';
+    $asset->type = 'raw';
 
     // create json object with invalid asset.
     $page_assets = new stdClass();
@@ -975,6 +989,7 @@ class SmallHayTest extends TestCase {
     // create json object with invalid json data.
     $asset = new stdClass();
     $asset->type = 'javascript';
+    $asset->type = 'raw';
     $asset->input = '<script type="javascript">alert("test");</script>';
 
     // create json object with invalid input.
@@ -1054,6 +1069,26 @@ class SmallHayTest extends TestCase {
   }
 
   /**
+   * Get JSON Object - Page Assets - Data Type Invalid
+   *
+   * @return false|string
+   */
+  private function _getJSONObjectPageAssetsDataTypeInvalid() {
+
+    // create json object with invalid json data.
+    $asset = new stdClass();
+    $asset->data_type = 'invalid';
+    $asset->type = 'raw';
+    $asset->input = '<script type="javascript">alert("test");</script>';
+
+    // create json object with a single asset.
+    $page_assets = new stdClass();
+    $page_assets->assets[] = $asset;
+
+    return json_encode($page_assets);
+  }
+
+  /**
    * Get JSON Object - Page Assets - Type Invalid
    *
    * @return false|string
@@ -1062,10 +1097,30 @@ class SmallHayTest extends TestCase {
 
     // create json object with invalid json data.
     $asset = new stdClass();
+    $asset->data_type = 'javascript';
     $asset->type = 'invalid';
     $asset->input = '<script type="javascript">alert("test");</script>';
 
     // create json object with a single asset.
+    $page_assets = new stdClass();
+    $page_assets->assets[] = $asset;
+
+    return json_encode($page_assets);
+  }
+
+  /**
+   * Get JSON Object - Page Assets - Data Type Missing
+   *
+   * @return false|string
+   */
+  private function _getJSONObjectPageAssetsDataTypeMissing() {
+
+    // create json object with missing data type.
+    $asset = new stdClass();
+    $asset->type = 'raw';
+    $asset->right = 'wrong';
+
+    // create json object with invalid asset.
     $page_assets = new stdClass();
     $page_assets->assets[] = $asset;
 
@@ -1081,6 +1136,7 @@ class SmallHayTest extends TestCase {
 
     // create json object with missing type.
     $asset = new stdClass();
+    $asset->data_type = 'javascript';
     $asset->right = 'wrong';
 
     // create json object with invalid asset.
