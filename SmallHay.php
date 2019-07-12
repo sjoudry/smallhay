@@ -106,11 +106,13 @@ class API {
    *      {
    *        "assets": [
    *          {
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n"
    *          },
    *          {
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "QW5vdGhlciBMb25nIGJhc2UgNjQgZW5jb2RlZCBzdHJpbmc="
    *          }
    *        ]
@@ -124,7 +126,8 @@ class API {
    *        "assets": {
    *          "224": {
    *            "id": "224",
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n",
    *            "output": null,
    *            "created": "1551028825",
@@ -133,7 +136,8 @@ class API {
    *          },
    *          "225": {
    *            "id": "225",
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "QW5vdGhlciBMb25nIGJhc2UgNjQgZW5jb2RlZCBzdHJpbmc=",
    *            "output": null,
    *            "created": "1551028825",
@@ -260,7 +264,8 @@ class API {
    *        "assets": {
    *          "224": {
    *            "id": "224",
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n",
    *            "output": null,
    *            "created": "1551028825",
@@ -269,7 +274,8 @@ class API {
    *          },
    *          "225": {
    *            "id": "225",
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "QW5vdGhlciBMb25nIGJhc2UgNjQgZW5jb2RlZCBzdHJpbmc=",
    *            "output": null,
    *            "created": "1551028825",
@@ -480,7 +486,8 @@ class API {
    *          "assets": {
    *            "1": {
    *              "id": "1",
-   *              "type": "javascript",
+   *              "data_type": "javascript",
+   *              "type": "raw",
    *              "input": "Long base 64 encoded string (modified)",
    *              "output": null,
    *              "created": "1549311047",
@@ -489,7 +496,8 @@ class API {
    *            },
    *            "2": {
    *              "id": "2",
-   *              "type": "javascript",
+   *              "data_type": "javascript",
+   *              "type": "raw",
    *              "input": "Another Long base 64 encoded string (modified)",
    *              "output": null,
    *              "created": "1549311047",
@@ -528,7 +536,8 @@ class API {
    *          "assets": {
    *            "1": {
    *              "id": "1",
-   *              "type": "javascript",
+   *              "data_type": "javascript",
+   *              "type": "raw",
    *              "input": "Long base 64 encoded string (modified)",
    *              "output": null,
    *              "created": "1549311047",
@@ -537,7 +546,8 @@ class API {
    *            },
    *            "2": {
    *              "id": "2",
-   *              "type": "javascript",
+   *              "data_type": "javascript",
+   *              "type": "raw",
    *              "input": "Another Long base 64 encoded string (modified)",
    *              "output": null,
    *              "created": "1549311047",
@@ -671,7 +681,8 @@ class API {
    *        "assets": {
    *          "8": {
    *            "id": "8",
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n",
    *            "output": null,
    *            "created": "1549311967",
@@ -699,9 +710,11 @@ class API {
    *        {
    *          "assets": {
    *            "1": {
+   *              "type": "raw",
    *              "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n"
    *            },
    *            "2": {
+   *              "type": "raw",
    *              "input": "QW5vdGhlciBMb25nIGJhc2UgNjQgZW5jb2RlZCBzdHJpbmc="
    *            }
    *          }
@@ -715,7 +728,8 @@ class API {
    *        "assets": {
    *          "8": {
    *            "id": "8",
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n",
    *            "output": null,
    *            "created": "1549311967",
@@ -724,7 +738,8 @@ class API {
    *          },
    *          "9": {
    *            "id": "9",
-   *            "type": "javascript",
+   *            "data_type": "javascript",
+   *            "type": "raw",
    *            "input": "TG9uZyBiYXNlIDY0IGVuY29kZWQgc3RyaW5n",
    *            "output": null,
    *            "created": "1549313126",
