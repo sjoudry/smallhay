@@ -30,6 +30,12 @@ class API {
   const API_RESOURCE = 'https://api.smallhay.com/v1';
 
   /**
+   * @var string API_TEST_RESOURCE
+   *    contains the resource URI for all API endpoints.
+   */
+  const API_TEST_RESOURCE = 'https://test-api.smallhay.com/v1';
+
+  /**
    * @var string|null $bearer_token
    *    contains the bearer token returned from the auth call.
    */
@@ -73,6 +79,13 @@ class API {
   private $curl_timeout = 4;
 
   /**
+   * @var bool $test
+   *    contains the flag that controls whether calls are made on the test
+   *    resource of the prod resource.
+   */
+  private $test = FALSE;
+
+  /**
    * @var int $http_code
    *    contains the http status code.
    */
@@ -86,9 +99,10 @@ class API {
    * @param string $_client_secret
    *     contains the client secret for authorization.
    */
-  public function __construct($_client_id, $_client_secret) {
+  public function __construct($_client_id, $_client_secret, $_test = FALSE) {
     $this->client_id = $_client_id;
     $this->client_secret = $_client_secret;
+    $this->test = $_test;
   }
 
   /**
@@ -232,7 +246,12 @@ class API {
       );
 
       $ch = curl_init();
-      curl_setopt($ch, CURLOPT_URL, self::API_RESOURCE . '/auth');
+      if ($this->test) {
+        curl_setopt($ch, CURLOPT_URL, self::API_TEST_RESOURCE . '/auth');
+      }
+      else {
+        curl_setopt($ch, CURLOPT_URL, self::API_RESOURCE . '/auth');
+      }
       curl_setopt($ch, CURLOPT_POST, TRUE);
       curl_setopt($ch, CURLOPT_HTTPHEADER, $headers);
       curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
@@ -554,7 +573,12 @@ class API {
       $headers = array('Authorization: Bearer ' . $this->bearer_token);
 
       $ch = curl_init();
-      curl_setopt($ch, CURLOPT_URL, self::API_RESOURCE . '/' . $endpoint);
+      if ($this->test) {
+        curl_setopt($ch, CURLOPT_URL, self::API_TEST_RESOURCE . '/' . $endpoint);
+      }
+      else {
+        curl_setopt($ch, CURLOPT_URL, self::API_RESOURCE . '/' . $endpoint);
+      }
       curl_setopt($ch, CURLOPT_RETURNTRANSFER, TRUE);
       curl_setopt($ch, CURLOPT_CONNECTTIMEOUT, $this->curl_connect_timeout);
       curl_setopt($ch, CURLOPT_TIMEOUT, $this->curl_timeout);
