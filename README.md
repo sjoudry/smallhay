@@ -40,7 +40,9 @@
 There is no need to authenticate manually as each call to the API will check to see if there is a valid bearer token before sending the payload.
 
 ```php
-// Instantiate the SDK. The final arg is boolean flag to specify which environment to make API calls against. If it is set to TRUE, the API calls will hit the test environment, otherwise it will hit the prod environment.
+// Instantiate the SDK. The final arg is boolean flag to specify which
+// environment to make API calls against. If it is set to TRUE, the API calls
+// will hit the test environment, otherwise it will hit the prod environment.
 $smallhay = new \SmallHay\API(CLIENT_ID, CLIENT_SECRET, TEST);
 ```
 
@@ -61,7 +63,8 @@ $response = $smallhay->create_pages(json_encode(['/path1:en', '/path1:fr']));
 Create a page asset via the API. Currently the API only supports Javascript.
 
 ```php
-// Create a page asset. Input must always be base 64 encoded as the API expects that format and will error if the string is not base 64 encoded.
+// Create a page asset. Input must always be base 64 encoded as the API expects
+// that format and will error if the string is not base 64 encoded.
 $asset = new stdClass();
 $asset->data_type = 'javascript';
 $asset->type = 'file';
