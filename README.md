@@ -3,6 +3,38 @@
 * This SDK requires an account with Small Hay - https://www.smallhay.com/.
 * Up to date documentation can be found on the API site - https://api.smallhay.com/v1/.
 
+# Functions
+
+## Authentication
+
+* get_auth() - https://api.smallhay.com/v1/#operation/Auth
+
+## Pages
+
+* create_pages() - https://api.smallhay.com/v1/#operation/CreatePages
+* delete_pages() - https://api.smallhay.com/v1/#operation/DeletePages
+* get_pages() - https://api.smallhay.com/v1/#operation/ListPages
+* update_pages() - https://api.smallhay.com/v1/#operation/ModifyPages
+
+## Page
+
+* delete_page() - https://api.smallhay.com/v1/#operation/DeletePage
+* get_page() - https://api.smallhay.com/v1/#operation/ListPage
+* modify_page() - https://api.smallhay.com/v1/#operation/ModifyPage
+
+## Page Assets
+
+* create_page_assets() - https://api.smallhay.com/v1/#operation/CreateAssets
+* delete_page_assets() - https://api.smallhay.com/v1/#operation/DeleteAssets
+* get_page_assets() - https://api.smallhay.com/v1/#operation/ListAssets
+* update_page_assets() - https://api.smallhay.com/v1/#operation/ModifyAssets
+
+## Page Asset
+
+* delete_page_asset() - https://api.smallhay.com/v1/#operation/DeleteAsset
+* get_page_asset() - https://api.smallhay.com/v1/#operation/ListAsset
+* modify_page_asset() - https://api.smallhay.com/v1/#operation/ModifyAsset
+
 # Sample Code
 
 There is no need to authenticate manually as each call to the API will check to see if there is a valid bearer token before sending the payload.
