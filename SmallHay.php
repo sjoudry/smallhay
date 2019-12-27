@@ -399,6 +399,16 @@ class API {
   }
 
   /**
+   * Get test.
+   *
+   * @return bool
+   *    contains the test value.
+   */
+  public function get_test() {
+    return $this->test;
+  }
+
+  /**
    * Set curl connect timeout value.
    *
    * @param int $_curl_connect_timeout
