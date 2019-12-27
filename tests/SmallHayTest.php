@@ -30,10 +30,23 @@ class SmallHayTest extends TestCase {
   protected $client_secret = 'demo';
 
   /**
-   * Set up
+   * Set up.
    */
   protected function setUp() {
-    $this->smallhay = new API($this->client_id, $this->client_secret);
+    $this->smallhay = new API($this->client_id, $this->client_secret, TRUE);
+  }
+
+  /**
+   * Tear down.
+   */
+  protected function tearDown() {
+    $response = $this->smallhay->get_pages();
+
+    $pages_to_delete = [];
+    foreach ($response->pages as $page) {
+      $pages_to_delete[] = $page->id;
+    }
+    $response = $this->smallhay->delete_pages(json_encode($pages_to_delete));
   }
 
   /**
@@ -45,9 +58,9 @@ class SmallHayTest extends TestCase {
     $this->assertEquals($this->client_id, $this->smallhay->get_client_id());
     $this->assertEquals($this->client_secret, $this->smallhay->get_client_secret());
 
-    // Access token is not set.
-    $this->assertNull($this->smallhay->get_access_token());
-    $this->assertEquals($this->smallhay->get_access_token_expires(), 0);
+    // Bearer token is not set.
+    $this->assertNull($this->smallhay->get_bearer_token());
+    $this->assertEquals($this->smallhay->get_bearer_token_expires(), 0);
 
     // Curl values are default.
     $this->assertEquals($this->smallhay->get_curl_connect_timeout(), 2);
@@ -58,6 +71,9 @@ class SmallHayTest extends TestCase {
     $this->smallhay->set_curl_timeout(2);
     $this->assertEquals($this->smallhay->get_curl_connect_timeout(), 4);
     $this->assertEquals($this->smallhay->get_curl_timeout(), 2);
+
+    // Confirm the test flag is set.
+    $this->assertEquals($this->smallhay->get_test(), TRUE);
   }
 
   /**
@@ -66,17 +82,17 @@ class SmallHayTest extends TestCase {
   public function testAuth() {
 
     // Create a new smallhay object with invalid credentials.
-    $bad_smallhay = new API('bad_demo', 'bad_demo');
+    $bad_smallhay = new API('bad_demo', 'bad_demo', TRUE);
 
     // Create two pages, this fails the auth call in send().
-    $response = $bad_smallhay->create_pages($this->_getJSONArrayPaths());
+    $response = $bad_smallhay->get_auth();
     $this->assertFalse($response);
 
     // Valid auth call
-    $this->smallhay->create_pages($this->_getJSONArrayPaths());
+    $response = $this->smallhay->get_auth();
     $this->assertEquals($this->smallhay->get_http_code(), 200);
-    $this->assertNotNull($this->smallhay->get_access_token());
-    $this->assertNotEquals($this->smallhay->get_access_token_expires(), 0);
+    $this->assertNotNull($this->smallhay->get_bearer_token());
+    $this->assertNotEquals($this->smallhay->get_bearer_token_expires(), 0);
   }
 
   /**
@@ -85,23 +101,23 @@ class SmallHayTest extends TestCase {
   public function testCreatePagesErrors() {
 
     // invalid JSON.
-    $response = $this->smallhay->create_pages($this->_getJSONInvalid());
+    $response = $this->smallhay->create_pages($this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-008', 500);
 
     // missing path data.
-    $response = $this->smallhay->create_pages($this->_getJSONArrayEmpty());
+    $response = $this->smallhay->create_pages($this->_getEmptyArray());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // maximum items.
-    $response = $this->smallhay->create_pages($this->_getJSONArrayPathsTooMany());
+    $response = $this->smallhay->create_pages($this->_getTooManyPaths());
     $this->_assertError($response, 'SH-v1-010', 500);
 
     // invalid path - non-string.
-    $response = $this->smallhay->create_pages($this->_getJSONArrayPathsBoolean());
+    $response = $this->smallhay->create_pages($this->_getBooleanPaths());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid path - missing leading /.
-    $response = $this->smallhay->create_pages($this->_getJSONArrayPathsString());
+    $response = $this->smallhay->create_pages($this->_getInvalidPaths());
     $this->_assertError($response, 'SH-v1-009', 500);
   }
 
@@ -111,54 +127,52 @@ class SmallHayTest extends TestCase {
   public function testModifyPagesErrors() {
 
     // Create two pages.
-    $response_create = $this->smallhay->create_pages($this->_getJSONArrayPathsMultiple());
+    $response_create = $this->smallhay->create_pages($this->_getPaths());
     $this->_assertSuccess($response_create);
-    $first_page_id = 0;
-    $second_page_id = 0;
-    foreach ($response_create->pages as $page_id => $page) {
-      if ($first_page_id == 0) {
-        $first_page_id = $page_id;
-      }
-      else {
-        $second_page_id = $page_id;
-      }
-    }
-    $this->assertNotEquals($first_page_id, 0);
-    $this->assertNotEquals($second_page_id, 0);
+    $this->assertNotEquals($response_create[0]->id, 0);
+    $this->assertNotEquals($response_create[1]->id, 0);
 
     // invalid JSON.
-    $response = $this->smallhay->update_pages($this->_getJSONInvalid());
+    $response = $this->smallhay->update_pages($this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-008', 500);
 
     // missing pages data.
-    $response = $this->smallhay->update_pages($this->_getJSONObjectEmpty());
+    $response = $this->smallhay->update_pages($this->_getEmptyArray());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // maximum items.
-    $response = $this->smallhay->update_pages($this->_getJSONObjectPagesTooMany());
+    $response = $this->smallhay->update_pages($this->_getTooManyPages());
     $this->_assertError($response, 'SH-v1-010', 500);
 
-    // non-numeric ids.
-    $response = $this->smallhay->update_pages($this->_getJSONObjectPagesIDMissing());
+    // non objects.
+    $response = $this->smallhay->update_pages($this->_getInvalidPaths());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // missing id.
+    $response = $this->smallhay->update_pages($this->_getPagesMissingId());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid id - non-numeric.
+    $response = $this->smallhay->update_pages($this->_getPagesInvalidId());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // missing path.
-    $response = $this->smallhay->update_pages($this->_getJSONObjectPagesPathMissing());
+    $response = $this->smallhay->update_pages($this->_getPagesMissingPath());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid path - missing leading /.
-    $response = $this->smallhay->update_pages($this->_getJSONObjectPagesPathString());
+    $response = $this->smallhay->update_pages($this->_getPagesInvalidPathFormat());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid path - non-string.
-    $response = $this->smallhay->update_pages($this->_getJSONObjectPagesPathBoolean());
+    $response = $this->smallhay->update_pages($this->_getPagesInvalidPathType());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // duplicate via update.
-    $first_path = $response_create->pages->{$first_page_id}->path;
-    $second_path = $response_create->pages->{$second_page_id}->path;
-    $response_create->pages->{$first_page_id}->path = $second_path;
-    $response_create->pages->{$second_page_id}->path = $first_path;
+    $first_path = $response_create[0]->path;
+    $second_path = $response_create[1]->path;
+    $response_create[0]->path = $second_path;
+    $response_create[1]->path = $first_path;
     $response = $this->smallhay->update_pages(json_encode($response_create));
     $this->_assertError($response, 'SH-v1-013', 500);
   }
@@ -169,19 +183,23 @@ class SmallHayTest extends TestCase {
   public function testDeletePagesErrors() {
 
     // invalid JSON.
-    $response = $this->smallhay->delete_pages($this->_getJSONInvalid());
+    $response = $this->smallhay->delete_pages($this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-008', 500);
 
     // missing page id.
-    $response = $this->smallhay->delete_pages($this->_getJSONArrayEmpty());
+    $response = $this->smallhay->delete_pages($this->_getEmptyArray());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // maximum items.
-    $response = $this->smallhay->delete_pages($this->_getJSONArrayPathsTooMany());
+    $response = $this->smallhay->delete_pages($this->_getTooManyIds());
     $this->_assertError($response, 'SH-v1-010', 500);
 
+    // incorrect page ids.
+    $response = $this->smallhay->delete_pages($this->_getIncorrectIds());
+    $this->_assertError($response, 'SH-v1-012', 404);
+
     // invalid page ids.
-    $response = $this->smallhay->delete_pages($this->_getJSONArrayPathsString());
+    $response = $this->smallhay->delete_pages($this->_getInvalidIds());
     $this->_assertError($response, 'SH-v1-009', 500);
   }
 
@@ -191,41 +209,48 @@ class SmallHayTest extends TestCase {
   public function testPagesCalls() {
 
     // Create two pages.
-    $response_create = $this->smallhay->create_pages($this->_getJSONArrayPaths());
+    $response_create = $this->smallhay->create_pages($this->_getPaths());
     $this->_assertSuccess($response_create);
-    $this->_assertAttributes($response_create, array('pages'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_create->pages)), 1);
-    foreach ($response_create->pages as $page_id => $page) {
+    $this->assertIsArray($response_create);
+    $this->assertCount(2, $response_create);
+    foreach ($response_create as $index => $page) {
       $this->_assertAttributes($page, array('id', 'path', 'created'));
-      $response_create->pages->{$page_id}->path .= '/' . md5(microtime(TRUE));
+      $response_create[$index]->path .= '/' . md5(microtime(TRUE));
     }
 
     // Modify two pages.
     $response_modify = $this->smallhay->update_pages(json_encode($response_create));
     $this->_assertSuccess($response_modify);
-    $this->_assertAttributes($response_modify, array('pages'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_modify->pages)), 1);
+    $this->assertIsArray($response_modify);
+    $this->assertCount(2, $response_modify);
     $this->assertEquals($response_create, $response_modify);
-    foreach ($response_modify->pages as $page_id => $page) {
+    foreach ($response_modify as $page) {
       $this->_assertAttributes($page, array('id', 'path', 'created'));
     }
 
     // Retrieve pages.
     $response_list = $this->smallhay->get_pages();
     $this->_assertSuccess($response_list);
+    $this->assertIsObject($response_list);
     $this->_assertAttributes($response_list, array('pages', 'links'));
-    $this->assertGreaterThanOrEqual(2, count(get_object_vars($response_list->pages)));
-    foreach ($response_list->pages as $page_id => $page) {
+    $this->assertGreaterThanOrEqual(2, count($response_list->pages));
+    foreach ($response_list->pages as $page) {
       $this->_assertAttributes($page, array('id', 'path', 'created'));
     }
 
+    // Build array of ids.
+    $pages_to_delete = [];
+    foreach ($response_modify as $page) {
+      $pages_to_delete[] = $page->id;
+    }
+
     // Delete both pages.
-    $response_delete = $this->smallhay->delete_pages(json_encode(array_keys(get_object_vars($response_modify->pages))));
+    $response_delete = $this->smallhay->delete_pages(json_encode($pages_to_delete));
     $this->_assertSuccess($response_delete);
-    $this->_assertAttributes($response_delete, array('pages'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_delete->pages)), 1);
+    $this->assertIsArray($response_delete);
+    $this->assertCount(2, $response_delete);
     $this->assertEquals($response_delete, $response_modify);
-    foreach ($response_delete->pages as $page_id => $page) {
+    foreach ($response_delete as $page) {
       $this->_assertAttributes($page, array('id', 'path', 'created'));
     }
   }
@@ -235,8 +260,12 @@ class SmallHayTest extends TestCase {
    */
   public function testListPageErrors() {
 
-    // invalid id.
-    $response = $this->smallhay->get_page(0);
+    // invalid ID.
+    $response = $this->smallhay->get_page($this->_getInvalidId());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // incorrect ID.
+    $response = $this->smallhay->get_page($this->_getIncorrectId());
     $this->_assertError($response, 'SH-v1-011', 404);
   }
 
@@ -246,43 +275,37 @@ class SmallHayTest extends TestCase {
   public function testModifyPageErrors() {
 
     // Create two pages.
-    $response_create = $this->smallhay->create_pages($this->_getJSONArrayPathsMultiple());
+    $response_create = $this->smallhay->create_pages($this->_getPaths());
     $this->_assertSuccess($response_create);
-    $first_page_id = 0;
-    $second_page_id = 0;
-    foreach ($response_create->pages as $page_id => $page) {
-      if ($first_page_id == 0) {
-        $first_page_id = $page_id;
-      }
-      else {
-        $second_page_id = $page_id;
-      }
-    }
-    $this->assertNotEquals($first_page_id, 0);
-    $this->assertNotEquals($second_page_id, 0);
+    $this->assertNotEquals($response_create[0]->id, 0);
+    $this->assertNotEquals($response_create[1]->id, 0);
 
-    // modify pages - invalid id.
-    $response = $this->smallhay->update_page(0, $this->_getJSONInvalid());
+    // modify pages - incorrect id.
+    $response = $this->smallhay->update_page($this->_getIncorrectId(), json_encode($response_create[1]->path));
     $this->_assertError($response, 'SH-v1-011', 404);
 
+    // modify pages - invalid id.
+    $response = $this->smallhay->update_page($this->_getInvalidId(), json_encode($response_create[1]->path));
+    $this->_assertError($response, 'SH-v1-009', 500);
+
     // invalid JSON.
-    $response = $this->smallhay->update_page($first_page_id, $this->_getJSONInvalid());
+    $response = $this->smallhay->update_page($response_create[0]->id, $this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-008', 500);
 
-    // missing path.
-    $response = $this->smallhay->update_page($first_page_id, $this->_getJSONObjectEmpty());
+    // missing page.
+    $response = $this->smallhay->update_page($response_create[0]->id, $this->_getEmptyObject());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid path - non-string.
-    $response = $this->smallhay->update_page($first_page_id, $this->_getJSONObjectPagePathBoolean());
+    $response = $this->smallhay->update_page($response_create[0]->id, $this->_getPathInvalidType());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid path - missing leading /.
-    $response = $this->smallhay->update_page($first_page_id, $this->_getJSONObjectPagePathString());
+    $response = $this->smallhay->update_page($response_create[0]->id, $this->_getPathInvalidFormat());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // duplicate via update.
-    $response = $this->smallhay->update_page($first_page_id, json_encode($response_create->pages->{$second_page_id}));
+    $response = $this->smallhay->update_page($response_create[0]->id, json_encode($response_create[1]->path));
     $this->_assertError($response, 'SH-v1-013', 500);
   }
 
@@ -291,244 +314,96 @@ class SmallHayTest extends TestCase {
    */
   public function testDeletePageErrors() {
 
-    // invalid id.
-    $response = $this->smallhay->delete_page(0);
+    // incorrect id.
+    $response = $this->smallhay->delete_page($this->_getIncorrectId());
     $this->_assertError($response, 'SH-v1-011', 404);
+
+    // invalid id.
+    $response = $this->smallhay->delete_page($this->_getInvalidId());
+    $this->_assertError($response, 'SH-v1-009', 500);
   }
 
   /**
    * Test 10 - page.
    */
   public function testPageCalls() {
-
-    // Create a page.
     list($created_id, $response_create) = $this->_createSinglePage();
 
     // Modify the page.
-    $response_create->pages->{$created_id}->path .= '/' . md5(microtime(TRUE));
-    $response_modify = $this->smallhay->update_page($created_id, json_encode($response_create->pages->{$created_id}));
+    $response_create[0]->path .= '/' . md5(microtime(TRUE));
+    $response_modify = $this->smallhay->update_page($created_id, json_encode($response_create[0]->path));
     $this->_assertSuccess($response_modify);
-    $this->_assertAttributes($response_modify, array('pages'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_modify->pages)), 1);
-    $this->assertEquals($response_create, $response_modify);
-    foreach ($response_modify->pages as $page_id => $page) {
-      $this->_assertAttributes($page, array('id', 'path', 'created'));
-    }
+    $this->assertIsObject($response_modify);
+    $this->assertEquals($response_create[0], $response_modify);
+    $this->_assertAttributes($response_modify, array('id', 'path', 'created'));
 
     // Retrieve page.
     $response_list = $this->smallhay->get_page($created_id);
     $this->_assertSuccess($response_list);
-    $this->_assertAttributes($response_list, array('pages'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_list->pages)), 1);
-    foreach ($response_list->pages as $page_id => $page) {
-      $this->_assertAttributes($page, array('id', 'path', 'created'));
-    }
+    $this->assertIsObject($response_list);
+    $this->assertEquals($response_create[0], $response_list);
+    $this->_assertAttributes($response_list, array('id', 'path', 'created'));
 
-    // Delete both pages.
+    // Delete page.
     $response_delete = $this->smallhay->delete_page($created_id);
     $this->_assertSuccess($response_delete);
-    $this->_assertAttributes($response_delete, array('pages'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_delete->pages)), 1);
-    $this->assertEquals($response_delete, $response_modify);
-    foreach ($response_delete->pages as $page_id => $page) {
-      $this->_assertAttributes($page, array('id', 'path', 'created'));
-    }
-  }
-
-  /**
-   * Test 11 - list page asset errors.
-   */
-  public function testListPageAssetErrors() {
-
-    // invalid page id.
-    $response = $this->smallhay->get_page_asset(0, 0);
-    $this->_assertError($response, 'SH-v1-011', 404);
-
-    // Create a single page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
-
-    // invalid asset id.
-    $response = $this->smallhay->get_page_asset($created_id, 0);
-    $this->_assertError($response, 'SH-v1-011', 404);
-}
-
-  /**
-   * Test 12 - modify page asset errors.
-   */
-  public function testModifyPageAssetErrors() {
-
-    // Create a single page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
-
-    // Create page assets.
-    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssets());
-    $this->_assertSuccess($response_create);
-    $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_create->assets)), 2);
-    $first_asset_id = 0;
-    $second_asset_id = 0;
-    foreach ($response_create->assets as $asset_id => $asset) {
-      if ($first_asset_id == 0) {
-        $first_asset_id = $asset_id;
-      }
-      else {
-        $second_asset_id = $asset_id;
-      }
-    }
-    $this->assertNotEquals($first_asset_id, 0);
-    $this->assertNotEquals($second_asset_id, 0);
-
-    // invalid id.
-    $response = $this->smallhay->update_page_asset($created_id, 0, '');
-    $this->_assertError($response, 'SH-v1-011', 404);
-
-    // invalid id.
-    $response = $this->smallhay->update_page_asset(0, $first_asset_id, $this->_getJSONInvalid());
-    $this->_assertError($response, 'SH-v1-011', 404);
-
-    // invalid JSON.
-    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONInvalid());
-    $this->_assertError($response, 'SH-v1-008', 500);
-
-    // missing assets data.
-    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONObjectEmpty());
-    $this->_assertError($response, 'SH-v1-009', 500);
-
-    // missing input.
-    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONObjectPageAssetsObjectInputMissing());
-    $this->_assertError($response, 'SH-v1-009', 500);
-
-    // invalid input - non-string.
-    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONObjectPageAssetsObjectInputBoolean());
-    $this->_assertError($response, 'SH-v1-009', 500);
-
-    // invalid input.
-    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, $this->_getJSONObjectPageAssetsObjectInputString());
-    $this->_assertError($response, 'SH-v1-009', 500);
-
-    // duplicate via update.
-    $response = $this->smallhay->update_page_asset($created_id, $first_asset_id, json_encode($response_create->assets->{$second_asset_id}));
-    $this->_assertError($response, 'SH-v1-013', 500);
-  }
-
-  /**
-   * Test 13 - delete page asset errors.
-   */
-  public function testDeletePageAssetErrors() {
-
-    // Create a single page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
-
-    // invalid id.
-    $response = $this->smallhay->delete_page_asset($created_id, 0);
-    $this->_assertError($response, 'SH-v1-011', 404);
-  }
-
-  /**
-   * Test 14 - page asset.
-   */
-  public function testPageAssetCalls() {
-
-    // Create a single page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
-
-    // create page assets.
-    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAsset());
-    $this->_assertSuccess($response_create);
-    $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_create->assets)), 1);
-    $created_asset_id = 0;
-    foreach ($response_create->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
-      $response_create->assets->{$asset_id}->input = base64_encode(base64_decode($asset->input) . 'new');
-      $created_asset_id = $asset_id;
-    }
-
-    // modify page asset.
-    $response_modify = $this->smallhay->update_page_asset($created_id, $created_asset_id, json_encode($response_create->assets->{$created_asset_id}));
-    $this->_assertSuccess($response_modify);
-    $this->_assertAttributes($response_modify, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_modify->assets)), 1);
-    $this->assertEquals($response_create->assets->{$created_asset_id}, $response_modify->assets->{$created_asset_id});
-    foreach ($response_modify->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
-    }
-
-    // list page asset.
-    $response_list = $this->smallhay->get_page_asset($created_id, $created_asset_id);
-    $this->_assertSuccess($response_list);
-    $this->_assertAttributes($response_list, array('assets', 'page'), array('links'));
-    $this->assertEquals(1, count(get_object_vars($response_list->assets)));
-    foreach ($response_list->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
-    }
-
-    // delete page asset.
-    $response_delete = $this->smallhay->delete_page_asset($created_id, $created_asset_id);
-    $this->_assertSuccess($response_delete);
-    $this->_assertAttributes($response_delete, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_delete->assets)), 1);
-    $this->assertEquals($response_delete, $response_list);
-    foreach ($response_delete->assets as $asset_id => $asset) {
-      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
-    }
+    $this->assertIsObject($response_delete);
+    $this->assertEquals($response_create[0], $response_delete);
+    $this->_assertAttributes($response_delete, array('id', 'path', 'created'));
   }
 
   /**
    * Test 15 - create page assets errors.
    */
   public function testCreatePageAssetsErrors() {
+    list($created_id, $response_create) = $this->_createSinglePage();
 
-    // invalid id.
-    $response = $this->smallhay->create_page_assets(0, $this->_getJSONInvalid());
+    // incorrect id.
+    $response = $this->smallhay->create_page_assets($this->_getIncorrectId(), $this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-011', 404);
 
-    // Create a single page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
+    // invalid id.
+    $response = $this->smallhay->create_page_assets($this->_getInvalidId(), $this->_getEmptyString());
+    $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid JSON.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONInvalid());
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-008', 500);
 
     // missing assets data.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectEmpty());
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getEmptyArray());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // maximum items.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsArrayTooMany());
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getTooManyPageAssets());
     $this->_assertError($response, 'SH-v1-010', 500);
 
-    // invalid data type.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsDataTypeInvalid());
-    $this->_assertError($response, 'SH-v1-009', 500);
-
-    // invalid type.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsTypeInvalid());
-    $this->_assertError($response, 'SH-v1-009', 500);
-
-    // invalid input.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsInputString());
-    $this->_assertError($response, 'SH-v1-009', 500);
-
-    // invalid input.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsInputBoolean());
-    $this->_assertError($response, 'SH-v1-009', 500);
-
     // missing data type.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsDataTypeMissing());
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getPageAssetsMissingDataType());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid data type.
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getPageAssetsInvalidDataType());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // missing type.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsTypeMissing());
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getPageAssetsMissingType());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid type.
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getPageAssetsInvalidType());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // missing input.
-    $response = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssetsInputMissing());
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getPageAssetsMissingInput());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid input.
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getPageAssetsInvalidInput());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid input.
+    $response = $this->smallhay->create_page_assets($created_id, $this->_getPageAssetsInvalidInputBoolean());
     $this->_assertError($response, 'SH-v1-009', 500);
   }
 
@@ -537,75 +412,82 @@ class SmallHayTest extends TestCase {
    */
   public function testListPageAssetsErrors() {
 
-    // invalid id.
-    $response = $this->smallhay->get_page_assets(0);
+    // incorrect id.
+    $response = $this->smallhay->get_page_assets($this->_getIncorrectId());
     $this->_assertError($response, 'SH-v1-011', 404);
-}
+
+    // invalid id.
+    $response = $this->smallhay->get_page_assets($this->_getInvalidId());
+    $this->_assertError($response, 'SH-v1-009', 500);
+  }
 
   /**
    * Test 17 - modify page assets errors.
    */
   public function testModifyPageAssetsErrors() {
-
-    // Create a single page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
+    list($created_id, $response_create) = $this->_createSinglePage();
 
     // Create page assets.
-    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssets());
+    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getPageAssets());
     $this->_assertSuccess($response_create);
-    $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_create->assets)), 2);
-    $first_asset_id = 0;
-    $second_asset_id = 0;
-    foreach ($response_create->assets as $asset_id => $asset) {
-      if ($first_asset_id == 0) {
-        $first_asset_id = $asset_id;
-      }
-      else {
-        $second_asset_id = $asset_id;
-      }
-    }
-    $this->assertNotEquals($first_asset_id, 0);
-    $this->assertNotEquals($second_asset_id, 0);
+    $this->assertIsArray($response_create);
+    $this->assertCount(2, $response_create);
+    $this->assertNotEquals($response_create[0]->id, 0);
+    $this->assertNotEquals($response_create[1]->id, 0);
+
+    // incorrect id.
+    $response = $this->smallhay->update_page_assets($this->_getIncorrectId(), $this->_getEmptyString());
+    $this->_assertError($response, 'SH-v1-011', 404);
 
     // invalid id.
-    $response = $this->smallhay->update_page_assets(0, $this->_getJSONInvalid());
+    $response = $this->smallhay->update_page_assets($this->_getIncorrectId(), $this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-011', 404);
 
     // invalid JSON.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONInvalid());
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-008', 500);
 
     // missing assets data.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectEmpty());
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getEmptyArray());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // maximum items.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectTooMany());
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getTooManyPageAssets());
     $this->_assertError($response, 'SH-v1-010', 500);
 
-    // missing input.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputMissing());
+    // missing type.
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getPageAssetsMissingType());
     $this->_assertError($response, 'SH-v1-009', 500);
 
-    // invalid input - non-string.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputBoolean());
+    // invalid type.
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getPageAssetsInvalidType());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // missing input.
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getPageAssetsMissingInput());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid input.
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsObjectInputString());
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getPageAssetsInvalidInput());
     $this->_assertError($response, 'SH-v1-009', 500);
 
-    // invalid page asset ids
-    $response = $this->smallhay->update_page_assets($created_id, $this->_getJSONObjectPageAssetsIdInvalid());
+    // invalid input.
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getPageAssetsInvalidInputBoolean());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // incorrect page asset ids
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getPageAssetsIncorrectId());
     $this->_assertError($response, 'SH-v1-011', 404);
 
+    // invalid page asset ids
+    $response = $this->smallhay->update_page_assets($created_id, $this->_getPageAssetsInvalidId());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
     // duplicate via update.
-    $first_input = $response_create->assets->{$first_asset_id}->input;
-    $second_input = $response_create->assets->{$first_asset_id}->input;
-    $response_create->assets->{$first_asset_id}->input = $second_input;
-    $response_create->assets->{$second_asset_id}->input = $first_input;
+    $first_input = $response_create[0]->input;
+    $second_input = $response_create[1]->input;
+    $response_create[0]->input = $second_input;
+    $response_create[1]->input = $first_input;
     $response = $this->smallhay->update_page_assets($created_id, json_encode($response_create));
     $this->_assertError($response, 'SH-v1-013', 500);
   }
@@ -614,79 +496,207 @@ class SmallHayTest extends TestCase {
    * Test 18 - delete page assets errors.
    */
   public function testDeletePageAssetsErrors() {
+    list($created_id, $response_create) = $this->_createSinglePage();
 
-    // Create a single page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
+    // incorrect ids.
+    $response = $this->smallhay->delete_page_assets($created_id, $this->_getIncorrectIds());
+    $this->_assertError($response, 'SH-v1-012', 404);
 
     // invalid id.
-    $response = $this->smallhay->delete_page_assets(0, $this->_getJSONInvalid());
-    $this->_assertError($response, 'SH-v1-011', 404);
+    $response = $this->smallhay->delete_page_assets($created_id, $this->_getInvalidIds());
+    $this->_assertError($response, 'SH-v1-009', 500);
 
     // invalid JSON.
-    $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONInvalid());
+    $response = $this->smallhay->delete_page_assets($created_id, $this->_getEmptyString());
     $this->_assertError($response, 'SH-v1-008', 500);
 
     // missing page asset id.
-    $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayEmpty());
+    $response = $this->smallhay->delete_page_assets($created_id, $this->_getEmptyArray());
     $this->_assertError($response, 'SH-v1-009', 500);
 
     // maximum items.
-    $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayPathsTooMany());
+    $response = $this->smallhay->delete_page_assets($created_id, $this->_getTooManyIds());
     $this->_assertError($response, 'SH-v1-010', 500);
-
-    // invalid page ids.
-    $response = $this->smallhay->delete_page_assets($created_id, $this->_getJSONArrayPathsString());
-    $this->_assertError($response, 'SH-v1-009', 500);
   }
 
   /**
    * Test 19 - page assets.
    */
   public function testPageAssetsCalls() {
-
-    // Create a single page.
-    $created = $this->_createSinglePage();
-    $created_id = array_shift($created);
+    list($created_id, $response_create) = $this->_createSinglePage();
 
     // create page assets.
-    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getJSONObjectPageAssets());
+    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getPageAssets());
     $this->_assertSuccess($response_create);
-    $this->_assertAttributes($response_create, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_create->assets)), 2);
-    foreach ($response_create->assets as $asset_id => $asset) {
+    $this->assertIsArray($response_create);
+    $this->assertCount(2, $response_create);
+    foreach ($response_create as $asset) {
       $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
-      $response_create->assets->{$asset_id}->input = base64_encode(base64_decode($asset->input) . 'new');
+      $response_create[0]->input = base64_encode(base64_decode($asset->input) . 'new');
     }
 
     // modify page assets.
     $response_modify = $this->smallhay->update_page_assets($created_id, json_encode($response_create));
     $this->_assertSuccess($response_modify);
-    $this->_assertAttributes($response_modify, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_modify->assets)), 2);
+    $this->assertIsArray($response_modify);
+    $this->assertCount(2, $response_modify);
     $this->assertEquals($response_create, $response_modify);
-    foreach ($response_modify->assets as $asset_id => $asset) {
+    foreach ($response_modify as $asset) {
       $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
 
     // list page assets.
     $response_list = $this->smallhay->get_page_assets($created_id);
     $this->_assertSuccess($response_list);
-    $this->_assertAttributes($response_list, array('assets', 'page', 'links'));
-    $this->assertGreaterThanOrEqual(2, count(get_object_vars($response_list->assets)));
-    foreach ($response_modify->assets as $asset_id => $asset) {
+    $this->_assertAttributes($response_list, array('assets', 'links'));
+    $this->assertCount(2, $response_list->assets);
+    foreach ($response_list->assets as $asset) {
       $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
 
+    // Build array of ids.
+    $pages_to_delete = [];
+    foreach ($response_modify as $page) {
+      $pages_to_delete[] = $page->id;
+    }
+
     // delete page assets.
-    $response_delete = $this->smallhay->delete_page_assets($created_id, json_encode(array_keys(get_object_vars($response_modify->assets))));
+    $response_delete = $this->smallhay->delete_page_assets($created_id, json_encode($pages_to_delete));
     $this->_assertSuccess($response_delete);
-    $this->_assertAttributes($response_delete, array('assets', 'page'), array('links'));
-    $this->assertEquals(count(get_object_vars($response_delete->assets)), 2);
+    $this->assertIsArray($response_delete);
+    $this->assertCount(2, $response_delete);
     $this->assertEquals($response_delete, $response_modify);
-    foreach ($response_modify->assets as $asset_id => $asset) {
+    foreach ($response_modify as $asset) {
       $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
     }
+  }
+
+  /**
+   * Test 11 - list page asset errors.
+   */
+  public function testListPageAssetErrors() {
+    list($created_id, $response_create) = $this->_createSinglePage();
+
+    // incorrect id.
+    $response = $this->smallhay->get_page_asset($created_id, $this->_getIncorrectId());
+    $this->_assertError($response, 'SH-v1-011', 404);
+
+    // invalid id.
+    $response = $this->smallhay->get_page_asset($created_id, $this->_getInvalidId());
+    $this->_assertError($response, 'SH-v1-009', 500);
+  }
+
+  /**
+   * Test 12 - modify page asset errors.
+   */
+  public function testModifyPageAssetErrors() {
+    list($created_id, $response_create) = $this->_createSinglePage();
+
+    // Create page assets.
+    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getPageAssets());
+    $this->_assertSuccess($response_create);
+    $this->assertIsArray($response_create);
+    $this->assertCount(2, $response_create);
+    $this->assertNotEquals($response_create[0]->id, 0);
+    $this->assertNotEquals($response_create[1]->id, 0);
+
+    // incorrect page id.
+    $response = $this->smallhay->update_page_asset($this->_getIncorrectId(), $response_create[0]->id, $this->_getEmptyString());
+    $this->_assertError($response, 'SH-v1-011', 404);
+
+    // invalid page id.
+    $response = $this->smallhay->update_page_asset($this->_getInvalidId(), $response_create[0]->id, $this->_getEmptyString());
+    $this->_assertError($response, 'SH-v1-009', 500);
+    
+    // incorrect id.
+    $response = $this->smallhay->update_page_asset($created_id, $this->_getIncorrectId(), $this->_getEmptyString());
+    $this->_assertError($response, 'SH-v1-011', 404);
+
+    // invalid id.
+    $response = $this->smallhay->update_page_asset($created_id, $this->_getInvalidIds(), $this->_getEmptyString());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid JSON.
+    $response = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, $this->_getEmptyString());
+    $this->_assertError($response, 'SH-v1-008', 500);
+
+    // missing asset.
+    $response = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, $this->_getEmptyObject());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // missing type.
+    $response = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, $this->_getPageAssetMissingType());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid type.
+    $response = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, $this->_getPageAssetInvalidType());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // missing input.
+    $response = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, $this->_getPageAssetMissingInput());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid input - non-string.
+    $response = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, $this->_getPageAssetInvalidInputBoolean());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // invalid input.
+    $response = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, $this->_getPageAssetInvalidInput());
+    $this->_assertError($response, 'SH-v1-009', 500);
+
+    // duplicate via update.
+    $response = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, json_encode($response_create[1]));
+    $this->_assertError($response, 'SH-v1-013', 500);
+  }
+
+  /**
+   * Test 13 - delete page asset errors.
+   */
+  public function testDeletePageAssetErrors() {
+    list($created_id, $response_create) = $this->_createSinglePage();
+
+    // incorrect id.
+    $response = $this->smallhay->delete_page_asset($created_id, $this->_getIncorrectId());
+    $this->_assertError($response, 'SH-v1-011', 404);
+
+    // invalid id.
+    $response = $this->smallhay->delete_page_asset($created_id, $this->_getInvalidId());
+    $this->_assertError($response, 'SH-v1-009', 500);
+  }
+
+  /**
+   * Test 14 - page asset.
+   */
+  public function testPageAssetCalls() {
+    list($created_id, $response_create) = $this->_createSinglePage();
+
+    // create page assets.
+    $response_create = $this->smallhay->create_page_assets($created_id, $this->_getPageAssets());
+    $this->_assertSuccess($response_create);
+    $this->assertIsArray($response_create);
+    $this->assertCount(2, $response_create);
+    foreach ($response_create as $index => $asset) {
+      $this->_assertAttributes($asset, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
+      $response_create[$index]->input = base64_encode(base64_decode($asset->input) . 'new');
+    }
+
+    // modify page asset.
+    $response_modify = $this->smallhay->update_page_asset($created_id, $response_create[0]->id, json_encode($response_create[0]));
+    $this->_assertSuccess($response_modify);
+    $this->assertEquals($response_create[0], $response_modify);
+    $this->_assertAttributes($response_modify, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
+
+    // list page asset.
+    $response_list = $this->smallhay->get_page_asset($created_id, $response_create[0]->id);
+    $this->_assertSuccess($response_list);
+    $this->assertEquals($response_list, $response_modify);
+    $this->_assertAttributes($response_list, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
+
+    // delete page asset.
+    $response_delete = $this->smallhay->delete_page_asset($created_id, $response_create[0]->id);
+    $this->_assertSuccess($response_delete);
+    $this->assertEquals($response_delete, $response_list);
+    $this->_assertAttributes($response_delete, array('id', 'data_type', 'type', 'input', 'output', 'created', 'completed', 'status'));
   }
 
   /**
@@ -700,6 +710,7 @@ class SmallHayTest extends TestCase {
    * @param array $has_not
    */
   private function _assertAttributes($object, $has = array(), $has_not = array()) {
+    $this->assertIsObject($object);
     foreach ($has as $attribute) {
       $this->assertObjectHasAttribute($attribute, $object);
     }
@@ -720,6 +731,7 @@ class SmallHayTest extends TestCase {
    */
   private function _assertError($response, $error_code, $http_code) {
     $this->assertNotFalse($response);
+    $this->assertIsObject($response);
     $this->assertObjectHasAttribute('error_code', $response);
     $this->assertObjectHasAttribute('error_title', $response);
     $this->assertObjectHasAttribute('error_message', $response);
@@ -747,476 +759,535 @@ class SmallHayTest extends TestCase {
    * @return array
    */
   private function _createSinglePage() {
-    $response = $this->smallhay->create_pages($this->_getJSONArrayPaths());
+    $response = $this->smallhay->create_pages($this->_getPath());
     $this->_assertSuccess($response);
-    $created_id = 0;
-    foreach ($response->pages as $page_id => $page) {
-      $created_id = $page_id;
-    }
-    $this->assertNotEquals($created_id, 0);
+    $this->assertIsArray($response);
+    $this->assertCount(1, $response);
+    $this->assertNotEquals($response[0]->id, 0);
 
-    return array($created_id, $response);
+    return array($response[0]->id, $response);
+  }
+  
+  /**
+   * Get Boolean Paths
+   * 
+   * @return array
+   */
+  private function _getBooleanPaths() {
+    return json_encode(array(TRUE, FALSE));
   }
 
   /**
-   * Get JSON Array - Empty
-   *
-   * @return false|string
+   * Get Empty Array.
+   * 
+   * @return string
    */
-  private function _getJSONArrayEmpty() {
+  private function _getEmptyArray() {
     return json_encode(array());
   }
 
   /**
-   * Get JSON Array - Path (Valid)
-   *
-   * @return false|string
+   * Get Empty Object.
+   * 
+   * @return string
    */
-  private function _getJSONArrayPaths() {
-    return json_encode(array('/test'));
-  }
-
-  /**
-   * Get JSON Array - Paths Multiple (Valid)
-   *
-   * @return false|string
-   */
-  private function _getJSONArrayPathsMultiple() {
-    return json_encode(array('/test', '/contact'));
-  }
-
-  /**
-   * Get JSON Array - Path Boolean
-   *
-   * @return false|string
-   */
-  private function _getJSONArrayPathsBoolean() {
-    return json_encode(array(TRUE));
-  }
-
-  /**
-   * Get JSON Array - Path String
-   *
-   * @return false|string
-   */
-  private function _getJSONArrayPathsString() {
-    return json_encode(array('invalid'));
-  }
-
-  /**
-   * Get JSON Array - Too Many Paths
-   *
-   * @return false|string
-   */
-  private function _getJSONArrayPathsTooMany() {
-    return json_encode(array_values(array_fill(1, 110, '/test')));
-  }
-
-  /**
-   * Get JSON Invalid
-   *
-   * @return false|string
-   */
-  private function _getJSONInvalid() {
-    return '';
-  }
-
-  /**
-   * Get JSON Object - Empty
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectEmpty() {
+  private function _getEmptyObject() {
     return json_encode(new stdClass());
   }
 
   /**
-   * Get JSON Object - Page Path Boolean
-   *
-   * @return false|string
+   * Get Empty String.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPagePathBoolean() {
-    $page = new stdClass();
-    $page->path = TRUE;
-
-    return json_encode($page);
+  private function _getEmptyString() {
+    return '';
   }
 
   /**
-   * Get JSON Object - Page Path String
-   *
-   * @return false|string
+   * Get Incorrect Id.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPagePathString() {
-    $page = new stdClass();
-    $page->path = 'invalid';
-
-    return json_encode($page);
+  private function _getIncorrectId() {
+    return 0;
   }
 
   /**
-   * Get JSON Object - Page Asset
-   *
-   * @return false|string
+   * Get Incorrect Ids.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPageAsset() {
+  private function _getIncorrectIds() {
+    return json_encode(array(0, 0));
+  }
 
-    // create json object with valid asset.
+  /**
+   * Get Invalid Id.
+   * 
+   * @return string
+   */
+  private function _getInvalidId() {
+    return 'invalid';
+  }
+
+  /**
+   * Get Invalid Ids.
+   * 
+   * @return string
+   */
+  private function _getInvalidIds() {
+    return json_encode(array('invalid', 'invalid'));
+  }
+
+  /**
+   * Get Invalid Paths.
+   * 
+   * @return string
+   */
+  private function _getInvalidPaths() {
+    return json_encode(array('invalid', 'invalid'));
+  }
+
+  /**
+   * Get Page Asset with Invalid Input.
+   * 
+   * @return string
+   */
+  private function _getPageAssetInvalidInput() {
     $asset = new stdClass();
-    $asset->data_type = 'javascript';
-    $asset->type = 'raw';
-    $asset->input = base64_encode('<script type="javascript">alert("asset 1");</script>');
+    $asset->type = 'file';
+    $asset->input = 'https://api.smallhay.com/v1';
 
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset;
-
-    return json_encode($page_assets);
+    return json_encode($asset);
   }
 
   /**
-   * Get JSON Object - Page Assets
-   *
-   * @return false|string
+   * Get Page Asset with Invalid Input (Boolean).
+   * 
+   * @return string
    */
-  private function _getJSONObjectPageAssets() {
-
-    // create json object with valid asset.
-    $asset1 = new stdClass();
-    $asset1->data_type = 'javascript';
-    $asset1->type = 'raw';
-    $asset1->input = base64_encode('<script type="javascript">alert("asset 1");</script>');
-
-    // create json object with valid asset.
-    $asset2 = new stdClass();
-    $asset2->data_type = 'javascript';
-    $asset2->type = 'raw';
-    $asset2->input = base64_encode('<script type="javascript">alert("asset 2");</script>');
-
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset1;
-    $page_assets->assets[] = $asset2;
-
-    return json_encode($page_assets);
-  }
-
-  /**
-   * Get JSON Object - Page Assets - Too Many Assets
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectPageAssetsArrayTooMany() {
-
-    // create json object with invalid json data.
+  private function _getPageAssetInvalidInputBoolean() {
     $asset = new stdClass();
-    $asset->data_type = 'invalid';
+    $asset->type = 'file';
+    $asset->input = TRUE;
+
+    return json_encode($asset);
+  }
+
+  /**
+   * Get Page Asset with Invalid Type.
+   * 
+   * @return string
+   */
+  private function _getPageAssetInvalidType() {
+    $asset = new stdClass();
     $asset->type = 'invalid';
-    $asset->input = '<script type="javascript">alert("test");</script>';
+    $asset->input = base64_encode('https://api.smallhay.com/v1');
 
-    // create json object with too many items.
-    $assets = array();
-    for ($i = 0; $i < 110; $i++) {
+    return json_encode($asset);
+  }
+
+  /**
+   * Get Page Asset with Missing Input.
+   * 
+   * @return string
+   */
+  private function _getPageAssetMissingInput() {
+    $asset = new stdClass();
+    $asset->type = 'file';
+
+    return json_encode($asset);
+  }
+
+  /**
+   * Get Page Asset with Missing Type.
+   * 
+   * @return string
+   */
+  private function _getPageAssetMissingType() {
+    $asset = new stdClass();
+    $asset->input = base64_encode('https://api.smallhay.com/v1');
+
+    return json_encode($asset);
+  }
+
+  /**
+   * Get Page Assets.
+   * 
+   * @return string
+   */
+  private function _getPageAssets() {
+    $inputs = ['<script type="javascript">alert("asset 1");</script>', '<script type="javascript">alert("asset 2");</script>'];
+    $assets = [];
+    foreach ($inputs as $input) {
+      $asset = new stdClass();
+      $asset->data_type = 'javascript';
+      $asset->type = 'raw';
+      $asset->input = base64_encode($input);
       $assets[] = $asset;
     }
 
-    $page_assets = new stdClass();
-    $page_assets->assets = $assets;
-
-    return json_encode($page_assets);
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Assets - ID Invalid
-   *
-   * @return false|string
+   * Get Page Assets with Incorrect Id.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPageAssetsIdInvalid() {
+  private function _getPageAssetsIncorrectId() {
+    $assets = [];
 
-    // create json object with missing input.
-    $page_assets = new stdClass();
-    $page_assets->assets = new stdClass();
-    $page_assets->assets->{0} = new stdClass();
-    $page_assets->assets->{0}->type = 'raw';
-    $page_assets->assets->{0}->input = base64_encode('<script type="javascript">alert("test");</script>');
-
-    return json_encode($page_assets);
-  }
-
-  /**
-   * Get JSON Object - Page Assets - Input Boolean
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectPageAssetsInputBoolean() {
-
-    // create json object with invalid json data.
-    $asset = new stdClass();
-    $asset->data_type = 'javascript';
-    $asset->type = 'raw';
-    $asset->input = TRUE;
-
-    // create json object with invalid input.
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset;
-
-    return json_encode($page_assets);
-  }
-
-  /**
-   * Get JSON Object - Page Assets - Input Missing
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectPageAssetsInputMissing() {
-
-    // create json object with missing input.
-    $asset = new stdClass();
-    $asset->type = 'javascript';
-    $asset->type = 'raw';
-
-    // create json object with invalid asset.
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset;
-
-    return json_encode($page_assets);
-  }
-
-  /**
-   * Get JSON Object - Page Assets - Input String
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectPageAssetsInputString() {
-
-    // create json object with invalid json data.
-    $asset = new stdClass();
-    $asset->type = 'javascript';
-    $asset->type = 'raw';
-    $asset->input = '<script type="javascript">alert("test");</script>';
-
-    // create json object with invalid input.
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset;
-
-    return json_encode($page_assets);
-  }
-
-  /**
-   * Get JSON Object - Page Assets Object - Input Boolean
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectPageAssetsObjectInputBoolean() {
-
-    // create json object with missing input.
-    $page_assets = new stdClass();
-    $page_assets->assets = new stdClass();
-    $page_assets->assets->{1} = new stdClass();
-    $page_assets->assets->{1}->input = TRUE;
-
-    return json_encode($page_assets);
-  }
-
-  /**
-   * Get JSON Object - Page Assets Object - Input Missing
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectPageAssetsObjectInputMissing() {
-
-    // create json object with missing input.
-    $page_assets = new stdClass();
-    $page_assets->assets = new stdClass();
-    $page_assets->assets->{1} = new stdClass();
-    $page_assets->assets->{1}->type = 'raw';
-    $page_assets->assets->{1}->right = 'wrong';
-
-    return json_encode($page_assets);
-  }
-
-  /**
-   * Get JSON Object - Page Assets Object - Input String
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectPageAssetsObjectInputString() {
-
-    // create json object with missing input.
-    $page_assets = new stdClass();
-    $page_assets->assets = new stdClass();
-    $page_assets->assets->{1} = new stdClass();
-    $page_assets->assets->{1}->type = 'raw';
-    $page_assets->assets->{1}->input = '<script type="javascript">alert("test");</script>';
-
-    return json_encode($page_assets);
-  }
-
-  /**
-   * Get JSON Object - Page Assets Object - Too Many Assets
-   *
-   * @return false|string
-   */
-  private function _getJSONObjectPageAssetsObjectTooMany() {
-
-    // create json object with invalid json data.
-    $asset = new stdClass();
-    $asset->input = '<script type="javascript">alert("test");</script>';
-
-    // create json object with too many items.
-    $page_assets = new stdClass();
-    $page_assets->assets = new stdClass();
-    for ($i = 1; $i <= 110; $i++) {
-      $page_assets->assets->{$i} = $asset;
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->id = 0;
+      $asset->type = 'file';
+      $asset->input = base64_encode('https://api.smallhay.com/v1');
+      $assets[] = $asset;
     }
 
-    return json_encode($page_assets);
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Assets - Data Type Invalid
-   *
-   * @return false|string
+   * Get Page Assets with Invalid Data Type.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPageAssetsDataTypeInvalid() {
+  private function _getPageAssetsInvalidDataType() {
+    $assets = [];
 
-    // create json object with invalid json data.
-    $asset = new stdClass();
-    $asset->data_type = 'invalid';
-    $asset->type = 'raw';
-    $asset->input = '<script type="javascript">alert("test");</script>';
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->data_type = 'invalid';
+      $asset->type = 'file';
+      $asset->input = base64_encode('https://api.smallhay.com/v1');
+      $assets[] = $asset;
+    }
 
-    // create json object with a single asset.
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset;
-
-    return json_encode($page_assets);
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Assets - Type Invalid
-   *
-   * @return false|string
+   * Get Page Assets with Invalid Id.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPageAssetsTypeInvalid() {
+  private function _getPageAssetsInvalidId() {
+    $assets = [];
 
-    // create json object with invalid json data.
-    $asset = new stdClass();
-    $asset->data_type = 'javascript';
-    $asset->type = 'invalid';
-    $asset->input = '<script type="javascript">alert("test");</script>';
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->id = 'invalid';
+      $asset->type = 'file';
+      $asset->input = base64_encode('https://api.smallhay.com/v1');
+      $assets[] = $asset;
+    }
 
-    // create json object with a single asset.
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset;
-
-    return json_encode($page_assets);
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Assets - Data Type Missing
-   *
-   * @return false|string
+   * Get Page Assets with Invalid Input.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPageAssetsDataTypeMissing() {
+  private function _getPageAssetsInvalidInput() {
+    $assets = [];
 
-    // create json object with missing data type.
-    $asset = new stdClass();
-    $asset->type = 'raw';
-    $asset->right = 'wrong';
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->data_type = 'javascript';
+      $asset->type = 'file';
+      $asset->input = 'https://api.smallhay.com/v1';
+      $assets[] = $asset;
+    }
 
-    // create json object with invalid asset.
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset;
-
-    return json_encode($page_assets);
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Assets - Type Missing
-   *
-   * @return false|string
+   * Get Page Assets with Invalid Input (Boolean).
+   * 
+   * @return string
    */
-  private function _getJSONObjectPageAssetsTypeMissing() {
+  private function _getPageAssetsInvalidInputBoolean() {
+    $assets = [];
 
-    // create json object with missing type.
-    $asset = new stdClass();
-    $asset->data_type = 'javascript';
-    $asset->right = 'wrong';
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->data_type = 'javascript';
+      $asset->type = 'file';
+      $asset->input = TRUE;
+      $assets[] = $asset;
+    }
 
-    // create json object with invalid asset.
-    $page_assets = new stdClass();
-    $page_assets->assets[] = $asset;
-
-    return json_encode($page_assets);
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Assets - ID Missing
-   *
-   * @return false|string
+   * Get Page Assets with Invalid Type.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPagesIDMissing() {
-    $pages = new stdClass();
-    $pages->pages = new stdClass();
-    $pages->pages->right = 'wrong';
+  private function _getPageAssetsInvalidType() {
+    $assets = [];
 
-    return json_encode($pages);
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->data_type = 'javascript';
+      $asset->type = 'invalid';
+      $asset->input = base64_encode('https://api.smallhay.com/v1');
+      $assets[] = $asset;
+    }
+
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Object - Path Boolean
-   *
-   * @return false|string
+   * Get Page Assets with Missing Data Type.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPagesPathBoolean() {
-    $pages = new stdClass();
-    $pages->pages = new stdClass();
-    $pages->pages->{1} = new stdClass();
-    $pages->pages->{1}->path = TRUE;
+  private function _getPageAssetsMissingDataType() {
+    $assets = [];
 
-    return json_encode($pages);
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->type = 'file';
+      $asset->input = base64_encode('https://api.smallhay.com/v1');
+      $assets[] = $asset;
+    }
+
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Object - Path String
-   *
-   * @return false|string
+   * Get Page Assets with Missing Input.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPagesPathString() {
-    $pages = new stdClass();
-    $pages->pages = new stdClass();
-    $pages->pages->{1} = new stdClass();
-    $pages->pages->{1}->path = 'invalid';
+  private function _getPageAssetsMissingInput() {
+    $assets = [];
 
-    return json_encode($pages);
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->data_type = 'javascript';
+      $asset->type = 'file';
+      $assets[] = $asset;
+    }
+
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Object - Path Missing
-   *
-   * @return false|string
+   * Get Page Assets with Missing Type.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPagesPathMissing() {
-    $pages = new stdClass();
-    $pages->pages = new stdClass();
-    $pages->pages->{1} = new stdClass();
-    $pages->pages->{1}->right = 'wrong';
+  private function _getPageAssetsMissingType() {
+    $assets = [];
 
-    return json_encode($pages);
+    for ($i = 1; $i <= 2; $i++) {
+      $asset = new stdClass();
+      $asset->data_type = 'javascript';
+      $asset->input = base64_encode('https://api.smallhay.com/v1');
+      $assets[] = $asset;
+    }
+
+    return json_encode($assets);
   }
 
   /**
-   * Get JSON Object - Page Object - Too Many Paths
-   *
-   * @return false|string
+   * Get Pages with Invalid Id.
+   * 
+   * @return string
    */
-  private function _getJSONObjectPagesTooMany() {
-    $pages = new stdClass();
-    $pages->pages = new stdClass();
-    for ($i = 1; $i <= 110; $i++) {
-      $pages->pages->{$i} = new stdClass();
-      $pages->pages->{$i}->path = '/test';
+  private function _getPagesInvalidId() {
+    $pages = [];
+
+    for ($i = 1; $i <= 2; $i++) {
+      $page = new stdClass();
+      $page->id = 'invalid';
+      $page->path = '/test';
+      $pages[] = $page;
     }
 
     return json_encode($pages);
   }
+
+  /**
+   * Get Pages with Invalid Path Format.
+   * 
+   * @return string
+   */
+  private function _getPagesInvalidPathFormat() {
+    $pages = [];
+
+    for ($i = 1; $i <= 2; $i++) {
+      $page = new stdClass();
+      $page->id = $i;
+      $page->path = 'test';
+      $pages[] = $page;
+    }
+
+    return json_encode($pages);
+  }
+
+  /**
+   * Get Pages with Invalid Path Type.
+   * 
+   * @return string
+   */
+  private function _getPagesInvalidPathType() {
+    $pages = [];
+
+    for ($i = 1; $i <= 2; $i++) {
+      $page = new stdClass();
+      $page->id = $i;
+      $page->path = TRUE;
+      $pages[] = $page;
+    }
+
+    return json_encode($pages);
+  }
+
+  /**
+   * Get Pages with Missing Id.
+   * 
+   * @return string
+   */
+  private function _getPagesMissingId() {
+    $pages = [];
+
+    for ($i = 1; $i <= 2; $i++) {
+      $page = new stdClass();
+      $page->path = '/test';
+      $pages[] = $page;
+    }
+
+    return json_encode($pages);
+  }
+
+  /**
+   * Get Pages with Missing Path.
+   * 
+   * @return string
+   */
+  private function _getPagesMissingPath() {
+    $pages = [];
+
+    for ($i = 1; $i <= 2; $i++) {
+      $page = new stdClass();
+      $page->id = $i;
+      $pages[] = $page;
+    }
+
+    return json_encode($pages);
+  }
+
+  /**
+   * Get Path (Invalid Format).
+   * 
+   * @return string
+   */
+  private function _getPathInvalidFormat() {
+    return json_encode('test');
+  }
+  
+  /**
+   * Get Path (Invalid Type).
+   * 
+   * @return string
+   */
+  private function _getPathInvalidType() {
+    return 1;
+  }
+
+  /**
+   * Get Path.
+   * 
+   * @return string
+   */
+  private function _getPath() {
+    return json_encode(array('/test'));
+  }
+
+  /**
+   * Get Paths.
+   * 
+   * @return string
+   */
+  private function _getPaths() {
+    return json_encode(array('/test', '/valid'));
+  }
+
+  /**
+   * Get Too Many Ids.
+   * 
+   * @return string
+   */
+  private function _getTooManyIds() {
+    $ids = [];
+
+    for ($i = 1; $i <= 110; $i++) {
+      $ids[] = $i;
+    }
+
+    return json_encode($ids);
+  }
+
+  /**
+   * Get Too Many Page Assets.
+   * 
+   * @return string
+   */
+  private function _getTooManyPageAssets() {
+    $assets = [];
+
+    for ($i = 1; $i <= 110; $i++) {
+      $asset = new stdClass();
+      $asset->data_type = 'javascript';
+      $asset->type = 'file';
+      $asset->input = base64_encode('https://api.smallhay.com/v1');
+      $assets[] = $asset;
+    }
+
+    return json_encode($assets);
+  }
+
+  /**
+   * Get Too Many Pages.
+   * 
+   * @return string
+   */
+  private function _getTooManyPages() {
+    $pages = [];
+
+    for ($i = 1; $i <= 110; $i++) {
+      $page = new stdClass();
+      $page->id = $i;
+      $page->path = '/test';
+      $pages[] = $page;
+    }
+
+    return json_encode($pages);
+  }
+
+  /**
+   * Get Too Many Paths.
+   * 
+   * @return string
+   */
+  private function _getTooManyPaths() {
+    $paths = [];
+
+    for ($i = 1; $i <= 110; $i++) {
+      $paths[] = '/test';
+    }
+
+    return json_encode($paths);
+  }
+
 }
