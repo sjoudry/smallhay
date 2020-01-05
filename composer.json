@@ -12,6 +12,10 @@
             "role": "Developer"
         }
     ],
+    "license": "GPL-2.0",	    ],
+    "bugs": {	    "require": {
+        "url": "https://github.com/sjoudry/smallhay/issues"
+    },
     "require": {
         "php": ">=7.1.0"
     }
