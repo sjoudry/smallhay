@@ -12,8 +12,8 @@
             "role": "Developer"
         }
     ],
-    "license": "GPL-2.0",	    ],
-    "bugs": {	    "require": {
+    "license": "GPL-2.0",
+    "bugs": {
         "url": "https://github.com/sjoudry/smallhay/issues"
     },
     "require": {
