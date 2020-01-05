@@ -1,19 +1,18 @@
 {
-  "name": "smallhay",
-  "version": "1.0",
+  "name": "small-hay/smallhay",
+  "type": "library",
   "description": "The Small Hay API SDK.",
-  "main": "SmallHay.php",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/sjoudry/smallhay.git"
-  },
-  "keywords": [
-    "smallhay"
-  ],
-  "author": "Scott Joudry <sj@smallhay.com>",
-  "license": "GPL-2.0",
-  "bugs": {
-    "url": "https://github.com/sjoudry/smallhay/issues"
-  },
-  "homepage": "https://www.smallhay.com/"
+  "keywords": ["smallhay"],
+  "homepage": "https://www.smallhay.com/",
+  "authors": [
+        {
+            "name": "Scott Joudry",
+            "email": "sj@smallhay.com",
+            "homepage": "https://www.smallhay.com/",
+            "role": "Developer"
+        }
+    ],
+    "require": {
+        "php": ">=7.1.0"
+    }
 }
