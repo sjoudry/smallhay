@@ -50,14 +50,14 @@ Pages will need to be created. Pages are arbitrary identifiers and loosely repre
 
 ```php
 // Create pages via the API.
-$response = $smallhay->create_pages(json_encode(['/path1', '/path2']));
+$response = $smallhay->create_pages(json_encode(['path1', 'path2']));
 ```
 
 Additional information can be added to the path if the path itself is not enough to uniquely identify a page. For example, if the same path can display multiple languages, construct the paths like so.
 
 ```php
 // Create pages via the API. Note, the language codes.
-$response = $smallhay->create_pages(json_encode(['/path1:en', '/path1:fr']));
+$response = $smallhay->create_pages(json_encode(['en:path1', 'fr:path1']));
 ```
 
 Create a page asset via the API. Currently the API only supports Javascript.
